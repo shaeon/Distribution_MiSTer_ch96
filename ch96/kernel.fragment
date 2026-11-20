@@ -1,0 +1,34 @@
+# Opciones que se añaden al MiSTer_defconfig para la Chameleon96.
+#
+# tools/build_release.sh las mezcla con scripts/kconfig/merge_config.sh y
+# comprueba después que todas han quedado activas (=y).
+#
+# Todo integrado en el kernel (=y), no como módulo: los módulos del linux.img
+# oficial son los de la DE10 y no traen estos drivers, y así no hace falta
+# cargar nada al arrancar.
+#
+# Activar drivers integrados no cambia la versión ni la ABI de los módulos
+# (MODVERSIONS está desactivado en MiSTer), así que los 94 módulos del
+# linux.img siguen cargando igual.
+
+#
+# Red USB por cable. La DE10-Nano tiene Ethernet en placa y el kernel de MiSTer
+# no trae ningún driver de red USB; la Chameleon96 no tiene PHY, así que sin
+# esto solo hay red con un adaptador WiFi USB.
+#
+# Aparecen como eth0, que es lo que buscan el linux.img (dhcpcd) y Main_MiSTer
+# para mostrar la IP en el menú.
+#
+CONFIG_USB_NET_DRIVERS=y
+CONFIG_USB_USBNET=y
+# Realtek RTL8152 / RTL8153 / RTL8156 (los adaptadores USB más comunes).
+# Su firmware (rtl_nic/*.fw) lo añade build_release.sh al linux.img.
+CONFIG_USB_RTL8152=y
+# ASIX AX88772 / AX88178 (USB 2.0) y AX88179 / AX88178A (USB 3.0)
+CONFIG_USB_NET_AX8817X=y
+CONFIG_USB_NET_AX88179_178A=y
+# Adaptadores CDC genéricos (ECM y NCM), muchos hubs USB-C con Ethernet
+CONFIG_USB_NET_CDCETHER=y
+CONFIG_USB_NET_CDC_NCM=y
+# Compartir la conexión del móvil por USB (RNDIS)
+CONFIG_USB_NET_RNDIS_HOST=y

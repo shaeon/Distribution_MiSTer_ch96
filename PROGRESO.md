@@ -43,7 +43,8 @@ usb1 host con `disable-over-current`, puentes FPGA, `flags-sram` en OCRAM, i2c2 
       MiSTer, y borra la versión vieja de un core al salir una nueva.
 - [ ] Subir el repo a github.com/shaeon/Distribution_MiSTer_ch96 y lanzar el workflow Release.
 - [ ] Probar en la placa la actualización de Linux (en modo PC el Downloader no la hace).
-- [ ] WiFi integrada de la placa (no está en el DTS); de momento, adaptador WiFi USB.
+- [ ] WiFi integrada (BCM4343W por SDIO hacia la FPGA): necesita un controlador SDIO en la FPGA. De momento, WiFi USB.
+- [x] Red USB por cable: ch96/kernel.fragment (RTL8152/8153/8156, ASIX, AX88179, CDC ECM/NCM, RNDIS) + firmware rtl_nic en el linux.img (ampliado 16 MB). SSH ya venía en el linux.img (root / 1).
 - [ ] Sonido de Linux (spi-audio) desactivado en el sys de ch96.
 
 ## Comprobado (sin placa)

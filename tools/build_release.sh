@@ -10,8 +10,10 @@
 #   files/menu.rbf            teiram/Menu_MiSTer_ch96, último menu_ch96_*.rbf
 #   files/linux/zImage_dtb    kernel MiSTer (el mismo commit que el linux.img)
 #                             + ch96/socfpga_cyclone5_chameleon96_mister.dts
+#                             + ch96/kernel.fragment (red USB por cable)
 #   files/linux/uboot.img     teiram/u-boot-socfpga (chameleon96) + ch96/*.patch
-#   files/linux/linux.img     el oficial, con /MiSTer.version = AAMMDD propio
+#   files/linux/linux.img     el oficial, ampliado 16 MB, con el firmware
+#                             rtl_nic y /MiSTer.version = AAMMDD propio
 #   files/downloader.ini      apunta el Downloader a esta distribución
 #
 # El mismo 7z sirve para crear la SD (tools/mk_mister_ch96_sd.sh) y para que
@@ -109,6 +111,12 @@ cp "$ROOT/ch96/$DTS.dts" "$KSRC/$DTS_DIR/"
 grep -q "$DTS.dtb" "$KSRC/$DTS_DIR/Makefile" || \
 	sed -i "s|socfpga_cyclone5_de10_nano.dtb \\\\|socfpga_cyclone5_de10_nano.dtb \\\\\n\t$DTS.dtb \\\\|" "$KSRC/$DTS_DIR/Makefile"
 make -C "$KSRC" -s MiSTer_defconfig
+# Opciones propias de la Chameleon96 (red USB por cable)
+"$KSRC/scripts/kconfig/merge_config.sh" -m -O "$KSRC" "$KSRC/.config" "$ROOT/ch96/kernel.fragment" >/dev/null
+make -C "$KSRC" -s olddefconfig
+for opt in $(grep -E '^CONFIG_[A-Z0-9_]+=y' "$ROOT/ch96/kernel.fragment" | cut -d= -f1); do
+	grep -q "^$opt=y" "$KSRC/.config" || die "$opt no ha quedado activa en el kernel (ch96/kernel.fragment)"
+done
 make -C "$KSRC" -s -j"$JOBS" LOCALVERSION=-MiSTer zImage modules \
 	intel/socfpga/$DTS.dtb intel/socfpga/socfpga_cyclone5_de10_nano.dtb
 
@@ -154,12 +162,61 @@ git -C "$WORK/menu" show "HEAD:$MENU" > "$FILES/menu.rbf"
 echo "$MENU"
 
 # --------------------------------------------- linux.img y extras de la SD
+# El linux.img oficial viene lleno: se amplía 16 MB para lo que se añade.
+say "linux.img: +16 MB"
+truncate -s +16M "$IMG"
+e2fsck -fy "$IMG" >/dev/null 2>&1 || true
+e2fsck -fn "$IMG" >/dev/null || die "linux.img con errores antes de ampliarlo"
+resize2fs "$IMG" >/dev/null 2>&1 || die "resize2fs"
+
+# Escribe un fichero en el linux.img como root:root
+img_write() { # origen destino modo
+	debugfs -w -R "rm $2" "$IMG" >/dev/null 2>&1 || true
+	debugfs -w -R "write $1 $2" "$IMG" >/dev/null 2>&1
+	debugfs -w -R "sif $2 uid 0" "$IMG" >/dev/null 2>&1
+	debugfs -w -R "sif $2 gid 0" "$IMG" >/dev/null 2>&1
+	debugfs -w -R "sif $2 mode 0100$3" "$IMG" >/dev/null 2>&1
+	[ "$(debugfs -R "cat $2" "$IMG" 2>/dev/null | md5sum)" = "$(md5sum < "$1")" ] || \
+		die "no se pudo escribir $2 en el linux.img"
+}
+
+say "linux.img: firmware rtl_nic (RTL8153/RTL8156)"
+FW_URL=https://gitlab.com/kernel-firmware/linux-firmware/-/raw/main
+mkdir -p "$WORK/rtl_nic"
+debugfs -w -R "mkdir /usr/lib/firmware/rtl_nic" "$IMG" >/dev/null 2>&1 || true
+for f in uid gid; do debugfs -w -R "sif /usr/lib/firmware/rtl_nic $f 0" "$IMG" >/dev/null 2>&1; done
+for fw in $(grep -o '"rtl_nic/[^"]*\.fw"' "$KSRC/drivers/net/usb/r8152.c" | tr -d '"' | sort -u); do
+	[ -s "$WORK/$fw" ] || curl -fsSL -o "$WORK/$fw" "$FW_URL/$fw" || die "no se pudo descargar $fw"
+	img_write "$WORK/$fw" "/usr/lib/firmware/$fw" 644
+	echo "  $fw"
+done
+
 say "linux.img: MiSTer.version $OFFICIAL_VER -> $SHORT"
 printf '%s' "$SHORT" > "$WORK/MiSTer.version"
-debugfs -w -R "rm /MiSTer.version" "$IMG" >/dev/null 2>&1
-debugfs -w -R "write $WORK/MiSTer.version /MiSTer.version" "$IMG" >/dev/null 2>&1
+img_write "$WORK/MiSTer.version" /MiSTer.version 644
 [ "$(debugfs -R "cat /MiSTer.version" "$IMG" 2>/dev/null)" = "$SHORT" ] || die "no se pudo escribir /MiSTer.version"
 e2fsck -fn "$IMG" >/dev/null || die "linux.img con errores tras el cambio"
+
+say "Scripts de MiSTer ([oficial] de sources.ini)"
+python3 - "$ROOT/sources.ini" "$OFFICIAL_DB" "$FILES" <<'EOF' || die "no se pudieron copiar los scripts de MiSTer"
+import configparser, hashlib, io, json, os, sys, urllib.parse, urllib.request, zipfile
+ini, db_url, files = sys.argv[1:]
+cfg = configparser.ConfigParser(inline_comment_prefixes=(';', '#'))
+cfg.read(ini)
+paths = cfg['oficial'].get('files', '').split() if cfg.has_section('oficial') else []
+z = zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(db_url, timeout=60).read()))
+db = json.loads(z.read(z.namelist()[0]))
+for p in paths:
+    d = db['files'][p]
+    url = d.get('url') or db['base_files_url'] + urllib.parse.quote(p)
+    data = urllib.request.urlopen(url, timeout=60).read()
+    if hashlib.md5(data).hexdigest() != d['hash']:
+        sys.exit(f'{p}: el MD5 no coincide')
+    dest = os.path.join(files, p)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    open(dest, 'wb').write(data)
+    print('  ' + p)
+EOF
 
 cat > "$FILES/downloader.ini" <<EOF
 [MiSTer]
@@ -174,7 +231,7 @@ EOF
 cat > "$FILES/linux/ch96_build.txt" <<EOF
 release_ch96_$VERSION
 linux.img oficial $OFFICIAL_VER ($(basename "$LINUX_URL")), módulos $MODVER
-kernel  MiSTer-devel/Linux-Kernel_MiSTer $KERNEL_REF + ch96/$DTS.dts
+kernel  MiSTer-devel/Linux-Kernel_MiSTer $KERNEL_REF + ch96/$DTS.dts + ch96/kernel.fragment
 u-boot  teiram/u-boot-socfpga $UBOOT_BRANCH@$UBOOT_SHA + ch96/u-boot-socfpga-chameleon96-mister.patch
 MiSTer  teiram/Main_MiSTer_ch96@$MAIN_SHA
 menu    teiram/Menu_MiSTer_ch96 $MENU

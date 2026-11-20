@@ -8,6 +8,7 @@
 # MiSTer-devel/Distribution_MiSTer:
 #
 #   - cores: sources.ini, el último releases/*_ch96_AAAAMMDD.rbf de cada repo
+#   - scripts de MiSTer: sección [oficial] de sources.ini (wifi.sh...)
 #   - menu.rbf
 #   - MiSTer: system.json (lo escribe tools/build_release.sh)
 #   - linux:  linux.json  (paquete release_ch96: kernel, U-Boot y linux.img)
@@ -25,6 +26,7 @@ import argparse
 import configparser
 import fnmatch
 import hashlib
+import io
 import json
 import os
 import re
@@ -33,11 +35,14 @@ import sys
 import tempfile
 import time
 import urllib.parse
+import urllib.request
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_ID = 'distribution_mister'
 DEFAULT_DB_URL = 'https://raw.githubusercontent.com/shaeon/Distribution_MiSTer_ch96/main/db.json.zip'
+OFFICIAL_SECTION = 'oficial'
+OFFICIAL_DB_URL = 'https://raw.githubusercontent.com/MiSTer-devel/Distribution_MiSTer/main/db.json.zip'
 DATE_RE = re.compile(r'_(\d{8})\.rbf$', re.IGNORECASE)
 
 
@@ -78,6 +83,27 @@ def install_name(section, filename):
     return re.sub(r'_ch96(?=_\d{8}\.rbf$)', '', filename, flags=re.IGNORECASE)
 
 
+def copy_official(paths, files, folders):
+    """Copia entradas tal cual de la base de datos oficial de MiSTer (scripts
+    que no dependen de la placa: wifi.sh, samba_on.sh...). La URL queda fijada
+    al commit de Distribution_MiSTer que anuncia la base de datos oficial."""
+    with urllib.request.urlopen(OFFICIAL_DB_URL, timeout=60) as r:
+        z = zipfile.ZipFile(io.BytesIO(r.read()))
+    official = json.loads(z.read(z.namelist()[0]))
+    base = official.get('base_files_url', '')
+    for path in paths:
+        desc = official['files'].get(path)
+        if desc is None:
+            raise RuntimeError(f'{path} no está en la base de datos oficial')
+        entry = {'hash': desc['hash'], 'size': desc['size'],
+                 'url': desc.get('url') or base + urllib.parse.quote(path)}
+        files[path] = entry
+        parts = path.split('/')[:-1]
+        for i in range(1, len(parts) + 1):
+            folders.setdefault('/'.join(parts[:i]), {})
+        log(f'  {path:45s} <- MiSTer-devel/Distribution_MiSTer')
+
+
 def load_json(name):
     path = os.path.join(ROOT, name)
     if not os.path.isfile(path):
@@ -98,6 +124,12 @@ def build(db_url):
     with tempfile.TemporaryDirectory() as work:
         for section in cfg.sections():
             s = cfg[section]
+            if section == OFFICIAL_SECTION:
+                try:
+                    copy_official(s.get('files', '').split(), files, folders)
+                except Exception as e:
+                    errors.append(f'[{section}] {e}')
+                continue
             repo = s.get('repo')
             if not repo:
                 errors.append(f'[{section}] sin repo')

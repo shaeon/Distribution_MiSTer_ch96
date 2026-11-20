@@ -31,6 +31,9 @@ Downloader solo usa esa base de datos, así que nunca instala nada de la
 DE10-Nano (cuyo kernel, U-Boot, `MiSTer` y `menu.rbf` dejarían la Chameleon96
 sin arrancar).
 
+- **Scripts de MiSTer**: la sección `[oficial]` de `sources.ini` copia de la
+  base de datos oficial los scripts que no dependen de la placa (`update.sh`,
+  `wifi.sh`, `samba_on.sh`, `timezone.sh`...).
 - **Cores**: los `.rbf` se quedan en sus repositorios. La URL de la base de
   datos apunta al fichero fijado a su commit. Al instalar se quita el `_ch96`
   del nombre (`TS2068_ch96_20261117.rbf` → `_Computer/TS2068_20261117.rbf`), y
@@ -63,8 +66,8 @@ que se publiquen al momento, el repositorio del core puede lanzar
 
 | Pieza | Origen |
 |---|---|
-| `linux/linux.img` | el oficial que anuncia la base de datos de MiSTer |
-| `linux/zImage_dtb` | `MiSTer-devel/Linux-Kernel_MiSTer`, el **mismo commit** que el `linux.img` (`ch96/kernel_versions.txt`), + `ch96/socfpga_cyclone5_chameleon96_mister.dts` |
+| `linux/linux.img` | el oficial que anuncia la base de datos de MiSTer, ampliado 16 MB y con el firmware `rtl_nic` |
+| `linux/zImage_dtb` | `MiSTer-devel/Linux-Kernel_MiSTer`, el **mismo commit** que el `linux.img` (`ch96/kernel_versions.txt`), + `ch96/socfpga_cyclone5_chameleon96_mister.dts` + `ch96/kernel.fragment` |
 | `linux/uboot.img` | `teiram/u-boot-socfpga` (rama `chameleon96`) + `ch96/u-boot-socfpga-chameleon96-mister.patch` |
 | `MiSTer` | `teiram/Main_MiSTer_ch96`, con la toolchain de MiSTer (gcc 10.2) |
 | `menu.rbf` | `teiram/Menu_MiSTer_ch96`, último `menu_ch96_*.rbf` |
@@ -131,6 +134,25 @@ Arranca el mismo initramfs en qemu (vexpress-a9, Cortex-A9) con la imagen
 ampliada a 2 GB como SD, deja que instale y comprueba el resultado:
 particiones, ficheros idénticos al paquete y U-Boot en la A2.
 
+## Red y SSH
+
+- **SSH**: como en MiSTer, el `linux.img` arranca `sshd`. Usuario `root`,
+  contraseña `1`.
+- **Red por cable (adaptador USB)**: la Chameleon96 no tiene Ethernet y el
+  kernel de MiSTer no trae drivers de red USB, así que `ch96/kernel.fragment`
+  los integra: Realtek RTL8152/RTL8153/RTL8156, ASIX AX88772/AX88178/AX88179,
+  CDC ECM/NCM (muchos hubs USB-C) y RNDIS (compartir la conexión del móvil).
+  Salen como `eth0` y piden IP por DHCP, como la Ethernet de la DE10.
+- **WiFi**: con un adaptador WiFi USB de los que soporta MiSTer (los drivers y
+  firmwares ya están en el kernel y el `linux.img`). Se configura igual que en
+  MiSTer: con `Scripts/wifi.sh` (va ya en la SD) o con
+  `linux/wpa_supplicant.conf` (en el instalador, `extra/linux/wpa_supplicant.conf`).
+- **WiFi integrada de la placa**: no funciona. Es un Broadcom BCM4343W por
+  SDIO, y el único controlador SD/MMC del HPS lo usa la microSD; el SDIO de la
+  WiFi va a la FPGA. Haría falta un controlador SDIO en la FPGA, describirlo en
+  el DTS y el fichero de calibración de ese módulo
+  ([explicación de Maverick](https://github.com/Maverick-Shark/chameleon96-workbench/blob/master/config/linux.fragment)).
+
 ## Estructura
 
 ```
@@ -138,7 +160,8 @@ sources.ini                 cores publicados
 downloader.ini              el que va en la raíz de la SD
 db.json.zip                 base de datos (la genera el workflow)
 linux.json, system.json     última release_ch96 (los genera el workflow)
-ch96/                       DTS, parche de U-Boot, MiSTer.ini, kernel_versions.txt
+ch96/                       DTS, kernel.fragment, parche de U-Boot, MiSTer.ini,
+                            kernel_versions.txt
 ch96/mrfusion/              /init y LEEME.txt del instalador
 tools/build_db.py           genera db.json.zip
 tools/build_release.sh      genera release_ch96_AAAAMMDD.7z
