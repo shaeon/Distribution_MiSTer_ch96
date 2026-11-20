@@ -7,7 +7,7 @@
 # la placa:
 #
 #   files/MiSTer              teiram/Main_MiSTer_ch96 (gcc 10.2, como MiSTer)
-#   files/menu.rbf            teiram/Menu_MiSTer_ch96, último menu_ch96_*.rbf
+#   files/menu.rbf            teiram/Menu_MiSTer_ch96, último menu_*_ch96.rbf (o menu_ch96_*.rbf)
 #   files/linux/zImage_dtb    kernel MiSTer (el mismo commit que el linux.img)
 #                             + ch96/socfpga_cyclone5_chameleon96_mister.dts
 #                             + ch96/kernel.fragment (red USB por cable)
@@ -156,8 +156,12 @@ install -m 755 "$WORK/main/bin/MiSTer" "$FILES/MiSTer"
 say "Menu_MiSTer_ch96"
 rm -rf "$WORK/menu"
 git clone -q --depth 1 --filter=blob:none --no-checkout "$MENU_REPO" "$WORK/menu"
-MENU=$(git -C "$WORK/menu" ls-tree --name-only HEAD releases/ | grep -E 'menu_ch96_[0-9]{8}\.rbf$' | sort | tail -1)
-[ -n "$MENU" ] || die "no hay releases/menu_ch96_*.rbf"
+# menu_20261120_ch96.rbf (actual) o menu_ch96_20260808.rbf (antiguo): ordena por fecha
+MENU=$(git -C "$WORK/menu" ls-tree --name-only HEAD releases/ \
+    | sed -nE 's#^(releases/menu_(ch96_)?([0-9]{8})(_ch96)?\.rbf)$#\3\4 \1#p' \
+    | grep -E '^[0-9]{8}(_ch96)? releases/menu_(ch96_[0-9]{8}|[0-9]{8}_ch96)\.rbf$' \
+    | sort | tail -1 | cut -d' ' -f2)
+[ -n "$MENU" ] || die "no hay releases/menu_*_ch96.rbf"
 git -C "$WORK/menu" show "HEAD:$MENU" > "$FILES/menu.rbf"
 echo "$MENU"
 

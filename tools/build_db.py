@@ -7,8 +7,11 @@
 # Downloader oficial (Scripts/update.sh) instala desde aquí en vez de desde
 # MiSTer-devel/Distribution_MiSTer:
 #
-#   - cores: sources.ini, el último releases/*_ch96_AAAAMMDD.rbf de cada repo
-#   - scripts de MiSTer: sección [oficial] de sources.ini (wifi.sh...)
+#   - cores: sources.ini, el último releases/<core>_AAAAMMDD_ch96.rbf de cada
+#     repo (también vale el formato antiguo <core>_ch96_AAAAMMDD.rbf)
+#   - ficheros de apoyo de los cores (ROMs de arranque...) y scripts de MiSTer
+#     copiados de la base de datos oficial: campo "oficial" de cada core y
+#     sección [oficial] de sources.ini
 #   - menu.rbf
 #   - MiSTer: system.json (lo escribe tools/build_release.sh)
 #   - linux:  linux.json  (paquete release_ch96: kernel, U-Boot y linux.img)
@@ -43,7 +46,8 @@ DB_ID = 'distribution_mister'
 DEFAULT_DB_URL = 'https://raw.githubusercontent.com/shaeon/Distribution_MiSTer_ch96/main/db.json.zip'
 OFFICIAL_SECTION = 'oficial'
 OFFICIAL_DB_URL = 'https://raw.githubusercontent.com/MiSTer-devel/Distribution_MiSTer/main/db.json.zip'
-DATE_RE = re.compile(r'_(\d{8})\.rbf$', re.IGNORECASE)
+# Fecha del .rbf: Core_20261120_ch96.rbf (actual) o Core_ch96_20261117.rbf (antiguo)
+DATE_RE = re.compile(r'_(\d{8})(_ch96)?\.rbf$', re.IGNORECASE)
 
 
 def log(msg):
@@ -66,10 +70,14 @@ def latest_release(repo, branch, pattern, work):
     sha = git('rev-parse', 'HEAD', cwd=dest).decode().strip()
     names = git('ls-tree', '--name-only', 'HEAD', 'releases/', cwd=dest).decode().split('\n')
     names = [os.path.basename(n) for n in names if n]
-    cands = [n for n in names if fnmatch.fnmatch(n.lower(), pattern.lower()) and DATE_RE.search(n)]
+    pats = pattern.lower().split()
+    cands = [n for n in names
+             if any(fnmatch.fnmatch(n.lower(), p) for p in pats) and DATE_RE.search(n)]
     if not cands:
         raise RuntimeError(f'{repo}: no hay releases/{pattern}')
-    best = max(cands, key=lambda n: (DATE_RE.search(n).group(1), n))
+    # La fecha manda; a igualdad de fecha, el formato nuevo (_ch96 al final)
+    best = max(cands, key=lambda n: (DATE_RE.search(n).group(1),
+                                     bool(DATE_RE.search(n).group(2)), n))
     data = git('show', f'HEAD:releases/{best}', cwd=dest)
     return sha, f'releases/{best}', data
 
@@ -78,30 +86,56 @@ def raw_url(repo, sha, path):
     return f'https://raw.githubusercontent.com/{repo}/{sha}/{urllib.parse.quote(path)}'
 
 
+def default_pattern(section):
+    """Los dos formatos de nombre de los .rbf de la ch96."""
+    return f'{section}_*_ch96.rbf {section}_ch96_*.rbf'
+
+
 def install_name(section, filename):
-    """TS2068_ch96_20261117.rbf -> TS2068_20261117.rbf"""
-    return re.sub(r'_ch96(?=_\d{8}\.rbf$)', '', filename, flags=re.IGNORECASE)
+    """Quita el _ch96 para que el menú muestre el core como en MiSTer:
+         TS2068_20261120_ch96.rbf -> TS2068_20261120.rbf
+         TS2068_ch96_20261117.rbf -> TS2068_20261117.rbf"""
+    name = re.sub(r'_ch96(?=\.rbf$)', '', filename, flags=re.IGNORECASE)
+    return re.sub(r'_ch96(?=_\d{8}\.rbf$)', '', name, flags=re.IGNORECASE)
 
 
-def copy_official(paths, files, folders):
-    """Copia entradas tal cual de la base de datos oficial de MiSTer (scripts
-    que no dependen de la placa: wifi.sh, samba_on.sh...). La URL queda fijada
-    al commit de Distribution_MiSTer que anuncia la base de datos oficial."""
-    with urllib.request.urlopen(OFFICIAL_DB_URL, timeout=60) as r:
-        z = zipfile.ZipFile(io.BytesIO(r.read()))
-    official = json.loads(z.read(z.namelist()[0]))
+def ini_list(value):
+    """Una entrada por línea (las rutas pueden llevar espacios: "games/Amstrad PCW/*")."""
+    return [l.strip() for l in (value or '').splitlines() if l.strip()]
+
+
+_official = None
+
+
+def official_db():
+    global _official
+    if _official is None:
+        with urllib.request.urlopen(OFFICIAL_DB_URL, timeout=60) as r:
+            z = zipfile.ZipFile(io.BytesIO(r.read()))
+        _official = json.loads(z.read(z.namelist()[0]))
+    return _official
+
+
+def copy_official(patterns, files, folders):
+    """Copia entradas tal cual de la base de datos oficial de MiSTer: scripts
+    que no dependen de la placa (wifi.sh, samba_on.sh...) y ficheros de apoyo
+    de los cores (games/AO486/boot0.rom...). Admite comodines. La URL queda
+    fijada al commit de Distribution_MiSTer que anuncia la base de datos
+    oficial."""
+    official = official_db()
     base = official.get('base_files_url', '')
-    for path in paths:
-        desc = official['files'].get(path)
-        if desc is None:
-            raise RuntimeError(f'{path} no está en la base de datos oficial')
-        entry = {'hash': desc['hash'], 'size': desc['size'],
-                 'url': desc.get('url') or base + urllib.parse.quote(path)}
-        files[path] = entry
-        parts = path.split('/')[:-1]
-        for i in range(1, len(parts) + 1):
-            folders.setdefault('/'.join(parts[:i]), {})
-        log(f'  {path:45s} <- MiSTer-devel/Distribution_MiSTer')
+    for pat in patterns:
+        paths = sorted(p for p in official['files'] if fnmatch.fnmatchcase(p, pat))
+        if not paths:
+            raise RuntimeError(f'{pat} no está en la base de datos oficial')
+        for path in paths:
+            desc = official['files'][path]
+            files[path] = {'hash': desc['hash'], 'size': desc['size'],
+                           'url': desc.get('url') or base + urllib.parse.quote(path)}
+            parts = path.split('/')[:-1]
+            for i in range(1, len(parts) + 1):
+                folders.setdefault('/'.join(parts[:i]), {})
+            log(f'  {path:45s} <- MiSTer-devel/Distribution_MiSTer')
 
 
 def load_json(name):
@@ -126,7 +160,7 @@ def build(db_url):
             s = cfg[section]
             if section == OFFICIAL_SECTION:
                 try:
-                    copy_official(s.get('files', '').split(), files, folders)
+                    copy_official(ini_list(s.get('files')), files, folders)
                 except Exception as e:
                     errors.append(f'[{section}] {e}')
                 continue
@@ -134,7 +168,7 @@ def build(db_url):
             if not repo:
                 errors.append(f'[{section}] sin repo')
                 continue
-            pattern = s.get('pattern', f'{section}_ch96_*.rbf')
+            pattern = s.get('pattern', default_pattern(section))
             try:
                 sha, path, data = latest_release(repo, s.get('branch'), pattern, work)
             except Exception as e:  # un core roto no tumba la base de datos
@@ -160,6 +194,12 @@ def build(db_url):
                 entry.update({'path': 'system', 'reboot': True})
             files[dest] = entry
             log(f'  {dest:45s} <- {repo}@{sha[:7]} {path}')
+
+            if s.get('oficial'):
+                try:
+                    copy_official(ini_list(s.get('oficial')), files, folders)
+                except Exception as e:
+                    errors.append(f'[{section}] {e}')
 
     system = load_json('system.json')
     if system and system.get('MiSTer'):

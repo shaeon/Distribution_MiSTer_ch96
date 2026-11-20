@@ -12,8 +12,8 @@ binario `MiSTer` y el Linux propios de la placa.
 ## Cómo funciona
 
 ```
- repos de cores ──(releases/<Core>_ch96_AAAAMMDD.rbf)──┐
- teiram/Menu_MiSTer_ch96 ──(releases/menu_ch96_*.rbf)──┤
+ repos de cores ──(releases/<Core>_AAAAMMDD_ch96.rbf)──┐
+ teiram/Menu_MiSTer_ch96 ──(releases/menu_*_ch96.rbf)──┤
                                                         ├─> tools/build_db.py ─> db.json.zip
  release_ch96_AAAAMMDD (GitHub Releases) ───────────────┘          ▲
    linux.json  (kernel, U-Boot y linux.img)                         │
@@ -36,8 +36,13 @@ sin arrancar).
   `wifi.sh`, `samba_on.sh`, `timezone.sh`...).
 - **Cores**: los `.rbf` se quedan en sus repositorios. La URL de la base de
   datos apunta al fichero fijado a su commit. Al instalar se quita el `_ch96`
-  del nombre (`TS2068_ch96_20261117.rbf` → `_Computer/TS2068_20261117.rbf`), y
-  cuando sale una fecha nueva el Downloader borra la anterior.
+  del nombre (`ao486_20261120_ch96.rbf` → `_Computer/ao486_20261120.rbf`), y
+  cuando sale una fecha nueva el Downloader borra la anterior. También vale el
+  formato antiguo (`TS2068_ch96_20261117.rbf`); los `.rbf` sin `_ch96` son los
+  de la DE10-Nano y se ignoran.
+- **Ficheros de apoyo de los cores** (ROMs de arranque del ao486, discos vacíos
+  del PET...): el campo `oficial` de cada core los copia de la base de datos
+  oficial a `games/`.
 - **Linux**: el paquete `release_ch96_AAAAMMDD.7z` tiene la estructura del
   release oficial. El Downloader lo instala con el mismo `linux/updateboot` de
   MiSTer, que graba `uboot.img` en la partición 2 (la A2 de la SD).
@@ -49,13 +54,15 @@ sin arrancar).
 Añade una sección en `sources.ini` y haz push:
 
 ```ini
-[TS2068]
-repo    = Maverick-Shark/TS2068_MiSTer
-branch  = ch96
-folder  = _Computer
+[ao486]
+repo    = teiram/ao486_MiSTer_ch96
+branch  = master          ; opcional: por defecto la rama principal
+folder  = _Computer       ; opcional: por defecto _Computer
+oficial = games/AO486/*   ; opcional: ficheros de apoyo de la distribución oficial
 ```
 
-El workflow busca en `releases/` el `TS2068_ch96_*.rbf` más reciente. Las
+El nombre de la sección es el del core. El workflow busca en `releases/` el
+`ao486_AAAAMMDD_ch96.rbf` (o `ao486_ch96_AAAAMMDD.rbf`) más reciente. Las
 versiones nuevas de los cores ya listados se recogen solas cada 6 horas. Para
 que se publiquen al momento, el repositorio del core puede lanzar
 `repository_dispatch` (tipo `core_released`) contra este repositorio.
@@ -70,7 +77,7 @@ que se publiquen al momento, el repositorio del core puede lanzar
 | `linux/zImage_dtb` | `MiSTer-devel/Linux-Kernel_MiSTer`, el **mismo commit** que el `linux.img` (`ch96/kernel_versions.txt`), + `ch96/socfpga_cyclone5_chameleon96_mister.dts` + `ch96/kernel.fragment` |
 | `linux/uboot.img` | `teiram/u-boot-socfpga` (rama `chameleon96`) + `ch96/u-boot-socfpga-chameleon96-mister.patch` |
 | `MiSTer` | `teiram/Main_MiSTer_ch96`, con la toolchain de MiSTer (gcc 10.2) |
-| `menu.rbf` | `teiram/Menu_MiSTer_ch96`, último `menu_ch96_*.rbf` |
+| `menu.rbf` | `teiram/Menu_MiSTer_ch96`, último `menu_*_ch96.rbf` |
 
 y con eso el instalador `mrfusion_ch96_AAAAMMDD.img.zip`. Todo se publica en
 la release.

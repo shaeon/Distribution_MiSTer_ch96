@@ -9,7 +9,7 @@ usando el `linux.img` oficial sin tocar y solo cambiando las piezas propias de l
 |---|---|---|
 | `linux/linux.img` | release oficial MiSTer 20260912 (sin cambios) | ok |
 | `MiSTer` | teiram/Main_MiSTer_ch96 @ d9799de, gcc 10.2-2020.11 (glibc ≤ 2.29, el linux.img trae 2.31) | compilado |
-| `menu.rbf` | teiram/Menu_MiSTer_ch96 `releases/menu_ch96_20260808.rbf` | ok |
+| `menu.rbf` | teiram/Menu_MiSTer_ch96 último `releases/menu_*_ch96.rbf` | ok |
 | `linux/uboot.img` | teiram/u-boot-socfpga rama chameleon96 @ 1d6a164 + `patches/u-boot-socfpga-chameleon96-mister.patch` | compilado |
 | `linux/zImage_dtb` | MiSTer-devel/Linux-Kernel_MiSTer @ 912aa56 (6.18.38, el del release 20260912, para que encajen los módulos del linux.img) + `socfpga_cyclone5_chameleon96_mister.dts` | compilado (vermagic `6.18.38-MiSTer SMP mod_unload ARMv7 p2v8`, igual que los 94 módulos del linux.img) |
 | `MiSTer.ini` | MiSTer_example.ini con `video_mode=0` | ok |
@@ -80,3 +80,14 @@ usb1 host con `disable-over-current`, puentes FPGA, `flags-sram` en OCRAM, i2c2 
       4 MB la Boot ROM no carga el preloader. Ahora la A2 va al principio (sector 2048, 4 MB) y el exFAT
       desde el sector 10240 (instalador, mk_mister_ch96_sd.sh y test). p1 = exFAT, p2 = A2 como antes.
 - [ ] Volver a probar en la placa con la A2 al principio.
+
+## Cores de teiram con el nombre nuevo (20/11/2026)
+- teiram ha resintetizado los cores con `_ch96` detrás de la fecha (`ao486_20261120_ch96.rbf`,
+  `menu_20261120_ch96.rbf`). build_db.py y build_release.sh aceptan los dos formatos; a igualdad
+  de fecha gana el nuevo. Se instalan sin `_ch96`.
+- sources.ini: ao486, Amstrad, Amstrad-PCW, BBCMicro, MicroBee, PET2001, SharpMZ (teiram),
+  TS2068 (Maverick-Shark) e IMSAI8080 (shaeon, rama ch96).
+- Campo `oficial` por core: copia de la base de datos oficial los ficheros de apoyo
+  (games/AO486/*, games/Amstrad/*, games/Amstrad PCW/*, games/PET2001/*). Admite comodines.
+- Amstrad y SharpMZ aún no tienen .rbf con el nombre nuevo: se coge el `_ch96_` antiguo.
+- Probado build_db.py: 43 ficheros.
