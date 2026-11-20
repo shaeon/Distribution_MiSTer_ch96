@@ -135,14 +135,17 @@ install -m 755 "$ROOT/ch96/mrfusion/init" "$R/init"
 $SUDO umount "$LI"
 
 # Comprobación: el init con los binarios ARM (qemu-arm si está)
-if command -v qemu-arm-static >/dev/null; then
+QEMU_ARM=$(command -v qemu-arm-static || command -v qemu-arm || true)
+if [ -n "$QEMU_ARM" ]; then
 	for b in "/bin/busybox --help" "/sbin/sfdisk --version" "/sbin/mkfs.exfat -V"; do
 		set -- $b
-		o=$(qemu-arm-static -L "$R" "$R$1" "$2" 2>&1 || true)
+		o=$("$QEMU_ARM" -L "$R" "$R$1" "$2" 2>&1 || true)
 		echo "$o" | grep -qiE "busybox|util-linux|exfatprogs" || die "$1 no arranca en el initramfs: $o"
 	done
-	qemu-arm-static -L "$R" "$R/bin/busybox" sh -n "$R/init" || die "el init tiene errores de sintaxis"
-	echo "binarios del initramfs comprobados con qemu-arm"
+	"$QEMU_ARM" -L "$R" "$R/bin/busybox" sh -n "$R/init" || die "el init tiene errores de sintaxis"
+	echo "binarios del initramfs comprobados con $(basename "$QEMU_ARM")"
+else
+	echo "AVISO: sin qemu-arm, no se comprueban los binarios del initramfs"
 fi
 du -sh "$R"
 

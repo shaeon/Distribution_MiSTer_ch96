@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -39,8 +39,10 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq bc bison flex libssl-dev lz4 u-boot-tools \
-            p7zip-full e2fsprogs libgnutls28-dev cpio mtools device-tree-compiler \
-            qemu-user-static zip
+            p7zip-full e2fsprogs libgnutls28-dev cpio mtools device-tree-compiler zip
+          # qemu-arm solo sirve para comprobar los binarios del instalador; el
+          # paquete cambió de nombre en Ubuntu (qemu-user-static -> qemu-user)
+          sudo apt-get install -y -qq qemu-user-static || sudo apt-get install -y -qq qemu-user || true
 
       - name: Caché (toolchain y kernel)
         uses: actions/cache@v4
