@@ -9,7 +9,7 @@
 # es el mismo: reparticiona, formatea, descomprime y graba la A2 de verdad.
 #
 # Después comprueba la tarjeta resultante:
-#   - exFAT en toda la tarjeta menos 4 MB y A2 al final
+#   - A2 de 4 MB en el sector 2048 y exFAT desde ahí hasta el final
 #   - todos los ficheros del paquete, idénticos
 #   - la A2 contiene linux/uboot.img
 #
@@ -66,7 +66,7 @@ sfdisk -l "$CARD" | tail -3
 read -r S1 N1 < <(sfdisk -d "$CARD" | awk -F'[=,]' '/start=/ {print $2+0, $4+0; exit}')
 A2=$(sfdisk -d "$CARD" | awk -F'[=,]' '/type=a2/ {print $2+0}')
 TOTAL=$(( $(stat -c %s "$CARD") / 512 ))
-[ $(( A2 + 8192 )) = "$TOTAL" ] && [ $(( S1 + N1 )) = "$A2" ] || { echo "FALLO: particiones"; exit 1; }
+[ "$A2" = 2048 ] && [ "$S1" = $(( 2048 + 8192 )) ] && [ $(( S1 + N1 )) = "$TOTAL" ] || { echo "FALLO: particiones"; exit 1; }
 
 T=$(mktemp -d)
 trap 'mountpoint -q "$T/sd" && umount "$T/sd"; [ -n "${L:-}" ] && losetup -d "$L"; rm -rf "$T"' EXIT

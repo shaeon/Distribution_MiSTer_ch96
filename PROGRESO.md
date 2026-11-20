@@ -76,4 +76,7 @@ usb1 host con `disable-over-current`, puentes FPGA, `flags-sram` en OCRAM, i2c2 
 - Probado en qemu vexpress-a9 (`tools/test_mrfusion_qemu.sh`) con tarjetas de 2 y 8 GB: reparticiona,
   formatea, descomprime y graba la A2; ficheros idénticos al paquete. U-Boot sandbox: arranca el
   instalador desde la FAT32 y la tarjeta instalada desde el exFAT.
-- [ ] Probar en la placa (en qemu el MMC es el pl181, no el dw_mmc de la ch96).
+- [x] Probado en la placa (tarjeta de 128 GB): el instalador instala, pero con la A2 en los últimos
+      4 MB la Boot ROM no carga el preloader. Ahora la A2 va al principio (sector 2048, 4 MB) y el exFAT
+      desde el sector 10240 (instalador, mk_mister_ch96_sd.sh y test). p1 = exFAT, p2 = A2 como antes.
+- [ ] Volver a probar en la placa con la A2 al principio.

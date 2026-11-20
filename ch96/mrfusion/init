@@ -6,8 +6,10 @@
 # grabada (partición 1 FAT32 "MRFUSION" + partición 2 A2):
 #
 #   1. copia mrfusion/payload.tar.xz y extra/ de la FAT32 a la RAM
-#   2. rehace la tarjeta como la de MiSTer: exFAT "MiSTer_Data" en toda la
-#      tarjeta menos 4 MB y la A2 en esos 4 MB del final
+#   2. rehace la tarjeta como la de MiSTer: A2 de 4 MB al principio (sector
+#      2048) y exFAT "MiSTer_Data" en todo lo demás. La A2 va al principio
+#      porque la Boot ROM de la Chameleon96 no arrancaba con ella al final de
+#      una tarjeta de 128 GB (con la A2 cerca del principio, sí).
 #   3. descomprime el paquete en el exFAT y copia encima extra/
 #   4. graba linux/uboot.img en la A2 y reinicia en MiSTer
 #
@@ -71,14 +73,16 @@ sync
 
 # ------------------------------------------------------ 2. particiones
 SECTORS=$(cat /sys/block/$BLK/size)
-DATA=$(( SECTORS - 2048 - A2_SECTORS ))
-log "tarjeta $DEV de $(( SECTORS / 2048 )) MB: exFAT de $(( DATA / 2048 )) MB + A2 de 4 MB"
+A2_START=2048
+DATA_START=$(( A2_START + A2_SECTORS ))
+DATA=$(( SECTORS - DATA_START ))
+log "tarjeta $DEV de $(( SECTORS / 2048 )) MB: A2 de 4 MB + exFAT de $(( DATA / 2048 )) MB"
 [ "$DATA" -gt 1048576 ] || fail "la tarjeta es demasiado pequeña (mínimo 1 GB)"
 
 sfdisk --force -q $DEV <<EOF || fail "sfdisk"
 label: dos
-start=2048, size=$DATA, type=7
-start=$(( 2048 + DATA )), size=$A2_SECTORS, type=a2
+start=$DATA_START, size=$DATA, type=7
+start=$A2_START, size=$A2_SECTORS, type=a2
 EOF
 sync
 sleep 1

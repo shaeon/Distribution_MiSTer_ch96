@@ -92,8 +92,9 @@ En local: `tools/build_release.sh` (variables documentadas en el script).
 cualquier tamaño (mínimo 1 GB). Al encender la Chameleon96 con ella:
 
 1. el instalador copia el paquete a la RAM (usa los 512 MB de la placa);
-2. rehace la tarjeta como la de MiSTer: exFAT `MiSTer_Data` en **toda** la
-   tarjeta y la A2 en los 4 MB del final;
+2. rehace la tarjeta: A2 de 4 MB al principio y exFAT `MiSTer_Data` en
+   **todo** lo demás (en la ch96 la A2 tiene que ir al principio: con ella al
+   final de una tarjeta de 128 GB, la Boot ROM no arranca);
 3. descomprime los ficheros, graba el U-Boot en la A2 y reinicia en MiSTer.
 
 Tarda 2-3 minutos. La pantalla se queda en negro hasta que sale el menú; el

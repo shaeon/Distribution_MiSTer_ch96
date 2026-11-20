@@ -88,6 +88,9 @@ mkdir -p "$FILES/_Computer" "$FILES/_Console" "$FILES/_Other" "$FILES/_Arcade"
 say "initramfs con los binarios del linux.img oficial"
 R="$M/initramfs"
 mkdir -p "$R"/{bin,sbin,lib,usr/bin,usr/sbin,proc,sys,dev,tmp,src,dst,extra} "$LI"
+# /dev/console para que el kernel abra la consola antes de que el init
+# monte devtmpfs (si no, "Warning: unable to open an initial console")
+mknod -m 600 "$R/dev/console" c 5 1
 mount -o loop,ro "$FILES/linux/linux.img" "$LI"
 
 # Copia un fichero del linux.img siguiendo los enlaces (la ruta puede

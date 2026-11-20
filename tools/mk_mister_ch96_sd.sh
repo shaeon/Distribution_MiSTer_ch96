@@ -5,10 +5,10 @@
 # Monta una SD con la misma estructura que la de MiSTer en la DE10-Nano
 # (la que deja Mr. Fusion / SD Installer):
 #
-#   p1  exFAT "MiSTer_Data"  (toda la tarjeta menos 4 MB)
+#   p2  tipo A2, 4 MB al principio (sector 2048)  SPL + U-Boot (lo lee la Boot ROM)
+#   p1  exFAT "MiSTer_Data", el resto de la tarjeta (desde el sector 10240)
 #         MiSTer, menu.rbf, MiSTer.ini, downloader.ini, Scripts/update.sh,
 #         linux/linux.img, linux/zImage_dtb, linux/uboot.img...
-#   p2  tipo A2 (4 MB al final)  SPL + U-Boot (lo lee la Boot ROM)
 #
 # Uso (Linux o WSL2, como root):
 #   sudo ./mk_mister_ch96_sd.sh -r release_ch96_AAAAMMDD.7z sdcard.img [tamaño]
@@ -96,20 +96,22 @@ else
 	SECTORS=$(( $(stat -c %s "$TARGET") / 512 ))
 fi
 
-# Mismo particionado que Mr. Fusion: exFAT en casi toda la tarjeta y la A2
-# en los últimos 4 MB (8192 sectores).
-DATA_SECTORS=$(( SECTORS - 2048 - 8192 ))
+# A2 de 4 MB al principio y exFAT en el resto. La Boot ROM de la
+# Chameleon96 no arrancaba con la A2 al final de una tarjeta de 128 GB.
+A2_START=2048
+DATA_START=$(( A2_START + 8192 ))
+DATA_SECTORS=$(( SECTORS - DATA_START ))
 echo "== Particionando"
 sfdisk --force -q "$DEV" <<EOF
 label: dos
-start=2048, size=$DATA_SECTORS, type=7
-start=$(( 2048 + DATA_SECTORS )), size=8192, type=a2
+start=$DATA_START, size=$DATA_SECTORS, type=7
+start=$A2_START, size=8192, type=a2
 EOF
 sync
 
-P1_OFF=$(( 2048 * 512 ))
+P1_OFF=$(( DATA_START * 512 ))
 P1_LEN=$(( DATA_SECTORS * 512 ))
-P2_OFF=$(( (2048 + DATA_SECTORS) * 512 ))
+P2_OFF=$(( A2_START * 512 ))
 
 echo "== Formateando exFAT (MiSTer_Data)"
 LOOP=$(losetup -f --show -o $P1_OFF --sizelimit $P1_LEN "$DEV")
