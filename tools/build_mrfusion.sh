@@ -18,7 +18,7 @@
 # U-Boot arranca igual que en la SD de MiSTer; el kernel del instalador lleva
 # el initramfs dentro y su DTB da a Linux los 512 MB enteros.
 #
-# Uso (root, o sudo para montar el linux.img):
+# Uso (como root; si no, el script se relanza solo con sudo):
 #   tools/build_mrfusion.sh release/release_ch96_AAAAMMDD.7z
 #
 # Variables:
@@ -42,7 +42,13 @@ KSRC=${KSRC:-$WORK/kernel}
 JOBS=${JOBS:-$(nproc)}
 TC_NAME=gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf
 DTS=socfpga_cyclone5_chameleon96_mister
-SUDO=; [ "$(id -u)" = 0 ] || SUDO=sudo
+# El linux.img oficial tiene /usr con permisos 770 (root): para sacar busybox
+# y las librerías hay que ser root. Si no lo somos (runner de GitHub), el
+# script se relanza con sudo y al terminar devuelve lo generado al usuario.
+if [ "$(id -u)" != 0 ]; then
+	exec sudo -E env "PATH=$PATH:/usr/local/sbin:/usr/sbin:/sbin" HOME="$HOME" bash "$0" "$@"
+fi
+SUDO=
 
 say() { echo; echo "== $*"; }
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -60,7 +66,10 @@ LI="$M/linux.img.mnt"
 
 cleanup() {
 	set +e
-	mountpoint -q "$LI" && $SUDO umount "$LI"
+	mountpoint -q "$LI" && umount "$LI"
+	if [ -n "${SUDO_UID:-}" ]; then
+		chown -R "$SUDO_UID:$SUDO_GID" "$OUT" "$WORK"
+	fi
 }
 trap cleanup EXIT
 
@@ -79,7 +88,7 @@ mkdir -p "$FILES/_Computer" "$FILES/_Console" "$FILES/_Other" "$FILES/_Arcade"
 say "initramfs con los binarios del linux.img oficial"
 R="$M/initramfs"
 mkdir -p "$R"/{bin,sbin,lib,usr/bin,usr/sbin,proc,sys,dev,tmp,src,dst,extra} "$LI"
-$SUDO mount -o loop,ro "$FILES/linux/linux.img" "$LI"
+mount -o loop,ro "$FILES/linux/linux.img" "$LI"
 
 # Copia un fichero del linux.img siguiendo los enlaces (la ruta puede
 # pasar por /lib -> usr/lib)
@@ -132,7 +141,7 @@ for a in sh ash awk cat cp dd echo ls mkdir mount umount reboot rm sleep usleep 
 	ln -sf busybox "$R/bin/$a"
 done
 install -m 755 "$ROOT/ch96/mrfusion/init" "$R/init"
-$SUDO umount "$LI"
+umount "$LI"
 
 # Comprobación: el init con los binarios ARM (qemu-arm si está)
 QEMU_ARM=$(command -v qemu-arm-static || command -v qemu-arm || true)
