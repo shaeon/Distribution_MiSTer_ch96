@@ -1,0 +1,139 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Chameleon96 for the MiSTer kernel / linux.img.
+ *
+ * Board description from teiram/linux-socfpga (chameleon96 branch,
+ * socfpga_cyclone5_chameleon96.dts) plus the MiSTer nodes of
+ * socfpga_cyclone5_de10_nano.dts that apply to this board.
+ *
+ * Memory map (as in Main_MiSTer_ch96):
+ *   0x00000000-0x0FFFFFFF  Linux (256MB)
+ *   0x10000000-0x1FFFFFFF  reserved, no-map: ao486 DDR window (0x10000000),
+ *                          core DDR, scaler/framebuffer (0x1D000000) and
+ *                          the U-Boot <-> Main flags page (0x1FFFF000)
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include "socfpga_cyclone5.dtsi"
+
+/ {
+	model = "Novtech Chameleon96 (MiSTer)";
+	compatible = "novtech,chameleon96", "altr,socfpga-cyclone5", "altr,socfpga";
+
+	chosen {
+		bootargs = "earlyprintk";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		name = "memory";
+		device_type = "memory";
+		reg = <0x0 0x20000000>; /* 512MB */
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		mister_reserved@10000000 {
+			reg = <0x10000000 0x10000000>;
+			no-map;
+		};
+	};
+
+	regulator_3_3v: regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	/* No gpio-leds: the four user LEDs (HPS GPIO14/22/25/32) are muxed to
+	 * LoanIO and driven by the FPGA (ch96_top.sv). */
+
+	MiSTer_fb {
+		compatible = "MiSTer_fb";
+		reg = <0x1D000000 0x800000>;
+		interrupt-parent = <&intc>;
+		interrupts = < 0 40 1 >;
+	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&i2c0 {
+	/* On Low speed expansion */
+	status = "okay";
+};
+
+&i2c1 {
+	/* On Low speed expansion */
+	status = "okay";
+};
+
+&i2c2 {
+	/* TDA19988 HDMI transmitter, programmed from userspace (Main_MiSTer) */
+	status = "okay";
+	clock-frequency = <100000>;
+	speed-mode = <0>;
+};
+
+&mmc0 {
+	vmmc-supply = <&regulator_3_3v>;
+	vqmmc-supply = <&regulator_3_3v>;
+	status = "okay";
+};
+
+&uart0 {
+	/* serial console */
+	/delete-property/dmas;
+	/delete-property/dma-names;
+	status = "okay";
+};
+
+&uart1 {
+	/delete-property/dmas;
+	/delete-property/dma-names;
+	status = "okay";
+};
+
+&usbphy0 {
+	status = "okay";
+};
+
+&usb1 {
+	disable-over-current;
+	dr_mode = "host";
+	status = "okay";
+};
+
+&fpga_bridge0 {
+	status = "okay";
+};
+
+&fpga_bridge1 {
+	status = "okay";
+};
+
+&fpga_bridge2 {
+	status = "okay";
+};
+
+&ocram {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0 0xffff0000 0x10000>;
+
+	flags-sram@f000 {
+		reg = <0xf000 0x1000>;
+	};
+};

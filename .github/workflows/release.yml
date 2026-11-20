@@ -1,0 +1,85 @@
+name: Release (Linux + MiSTer)
+
+# Compila el paquete release_ch96_AAAAMMDD.7z (kernel, U-Boot, MiSTer y menú
+# de la Chameleon96 sobre el linux.img oficial) y el instalador
+# mrfusion_ch96_AAAAMMDD.img.zip, los publica como release de GitHub y
+# actualiza linux.json/system.json y db.json.zip.
+#
+# Lánzalo a mano cuando:
+#   - MiSTer saque un linux.img nuevo (añade antes su commit del kernel en
+#     ch96/kernel_versions.txt, o pásalo en kernel_ref)
+#   - cambie Main_MiSTer_ch96, el U-Boot de teiram o algo de ch96/
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_ref:
+        description: 'Commit de Linux-Kernel_MiSTer (vacío: ch96/kernel_versions.txt)'
+        required: false
+        default: ''
+      linux_url:
+        description: 'linux_release_*.7z oficial (vacío: el de la base de datos oficial)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: db
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencias
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bc bison flex libssl-dev lz4 u-boot-tools \
+            p7zip-full e2fsprogs libgnutls28-dev cpio mtools device-tree-compiler \
+            qemu-user-static zip
+
+      - name: Caché (toolchain y kernel)
+        uses: actions/cache@v4
+        with:
+          path: |
+            work/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf
+            work/kernel
+          key: ch96-work-${{ hashFiles('ch96/kernel_versions.txt') }}-${{ github.run_id }}
+          restore-keys: ch96-work-
+
+      - name: Compilar
+        env:
+          KERNEL_REF: ${{ inputs.kernel_ref }}
+          LINUX_URL: ${{ inputs.linux_url }}
+          REPO: ${{ github.repository }}
+        run: |
+          export VERSION=$(date -u +%Y%m%d)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          ./tools/build_release.sh
+
+      - name: Instalador (mrfusion_ch96)
+        run: ./tools/build_mrfusion.sh "release/release_ch96_$VERSION.7z"
+
+      - name: Publicar la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=release_ch96_$VERSION
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" release/release_ch96_$VERSION.7z release/MiSTer_ch96_$VERSION \
+            release/mrfusion_ch96_$VERSION.img.zip \
+            --title "$TAG" --notes-file work/rel/files/linux/ch96_build.txt
+
+      - name: Actualizar la base de datos
+        run: |
+          cp release/linux.json release/system.json .
+          python3 tools/build_db.py --db-url "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/db.json.zip"
+          git config user.name "Shaeon (Carlos Palmero)"
+          git config user.email "shaeon@users.noreply.github.com"
+          git add linux.json system.json db.json.zip
+          git commit -m "release_ch96_$VERSION"
+          git push

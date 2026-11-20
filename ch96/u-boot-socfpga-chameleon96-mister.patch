@@ -1,0 +1,179 @@
+diff --git a/board/novtech/chameleon96/board.c b/board/novtech/chameleon96/board.c
+index 3101af16..03ce903c 100644
+--- a/board/novtech/chameleon96/board.c
++++ b/board/novtech/chameleon96/board.c
+@@ -153,3 +153,20 @@ int board_late_init(void) {
+ }
+ 
+ #endif /* CONFIG_BOARD_LATE_INIT */
++
++#include <init.h>
++#include <asm/global_data.h>
++
++/*
++ * MiSTer layout: only the lower 256MB belong to the HPS. The upper 256MB
++ * (0x10000000-0x1FFFFFFF) hold the core DDR windows, the scaler framebuffer
++ * and, at 0x1FFFF000, the page where Main_MiSTer leaves the core to load
++ * after a warm reboot. Keep the relocated U-Boot (and its 64MB malloc area)
++ * below 0x10000000 so it does not overwrite that page before "fpgacheck"
++ * reads it. On the DE10-nano (1GB) U-Boot relocates above 0x20000000, so
++ * the problem does not exist there.
++ */
++phys_addr_t board_get_usable_ram_top(phys_size_t total_size)
++{
++	return 0x10000000;
++}
+diff --git a/configs/socfpga_chameleon96_defconfig b/configs/socfpga_chameleon96_defconfig
+index df3d8e38..c5bddfca 100644
+--- a/configs/socfpga_chameleon96_defconfig
++++ b/configs/socfpga_chameleon96_defconfig
+@@ -23,7 +23,7 @@ CONFIG_SPL_SPI=n
+ CONFIG_TIMESTAMP=y
+ CONFIG_FIT=y
+ CONFIG_DISTRO_DEFAULTS=y
+-CONFIG_BOOTCOMMAND="run fatscript;bridge enable; run distro_bootcmd"
++CONFIG_BOOTCOMMAND="run mmcload; run mmcboot"
+ CONFIG_DEFAULT_FDT_FILE="socfpga_cyclone5_chameleon96.dtb"
+ CONFIG_SYS_CONSOLE_IS_IN_ENV=y
+ CONFIG_SYS_CONSOLE_OVERWRITE_ROUTINE=y
+@@ -55,8 +55,7 @@ CONFIG_MTDPARTS_DEFAULT="mtdparts=ff705000.spi.0:1m(u-boot),256k(env1),256k(env2
+ CONFIG_CMD_UBI=y
+ # CONFIG_ISO_PARTITION is not set
+ # CONFIG_EFI_PARTITION is not set
+-CONFIG_ENV_IS_IN_MMC=y
+-CONFIG_SYS_RELOC_GD_ENV_ADDR=y
++CONFIG_ENV_IS_NOWHERE=y
+ CONFIG_VERSION_VARIABLE=y
+ CONFIG_SPL_DM_SEQ_ALIAS=y
+ CONFIG_DFU_MMC=y
+@@ -93,3 +92,10 @@ CONFIG_WDT=y
+ # CONFIG_TOOLS_MKEFICAPSULE is not set
+ CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION=y
+ CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_PARTITION_TYPE=y
++CONFIG_FS_EXFAT=y
++CONFIG_CMD_FS_GENERIC=y
++CONFIG_CMD_ITEST=y
++CONFIG_CMD_SETEXPR=y
++CONFIG_CMD_BOOTZ=y
++CONFIG_CMD_FPGA=y
++CONFIG_BOOTDELAY=0
+diff --git a/fs/exfat/time.c b/fs/exfat/time.c
+index f2217dd7..6a2ad81d 100644
+--- a/fs/exfat/time.c
++++ b/fs/exfat/time.c
+@@ -125,8 +125,10 @@ void exfat_unix2exfat(time_t unix_time, le16_t* date, le16_t* time,
+ 		unix_time = shift;
+ 
+ 	unix_time -= shift;
++	/* non-negative from here: use unsigned 64-bit maths (no __aeabi_ldivmod on arm32) */
++	uint64_t ut = unix_time;
+ 
+-	days = unix_time / SEC_IN_DAY;
++	days = ut / SEC_IN_DAY;
+ 	year = (4 * days) / (4 * 365 + 1);
+ 	days -= year * 365 + LEAP_YEARS(year);
+ 	month = 0;
+@@ -144,17 +146,17 @@ void exfat_unix2exfat(time_t unix_time, le16_t* date, le16_t* time,
+ 	}
+ 	day = days + 1;
+ 
+-	hour = (unix_time % SEC_IN_DAY) / SEC_IN_HOUR;
+-	min = (unix_time % SEC_IN_HOUR) / SEC_IN_MIN;
+-	twosec = (unix_time % SEC_IN_MIN) / 2;
++	hour = (ut % SEC_IN_DAY) / SEC_IN_HOUR;
++	min = (ut % SEC_IN_HOUR) / SEC_IN_MIN;
++	twosec = (ut % SEC_IN_MIN) / 2;
+ 
+ 	*date = cpu_to_le16(day | (month << 5) | (year << 9));
+ 	*time = cpu_to_le16(twosec | (min << 5) | (hour << 11));
+ 	if (centisec)
+-		*centisec = (unix_time % 2) * 100;
++		*centisec = (ut % 2) * 100;
+ 
+ 	/* record our local timezone offset in exFAT (15 minute increment) format */
+-	*tzoffset = (uint8_t)(-exfat_timezone / 60 / 15) | 0x80;
++	*tzoffset = (uint8_t)(-(int)exfat_timezone / 60 / 15) | 0x80;
+ }
+ 
+ void exfat_tzset(void)
+diff --git a/include/configs/socfpga_chameleon96.h b/include/configs/socfpga_chameleon96.h
+index 7ba5576d..d49ad76a 100644
+--- a/include/configs/socfpga_chameleon96.h
++++ b/include/configs/socfpga_chameleon96.h
+@@ -7,23 +7,60 @@
+ /* Memory configurations */
+ #define PHYS_SDRAM_1_SIZE		0x20000000	/* 512MiB on Ch96 */
+ 
+-/* QSPI boot */
+-#define FDT_SIZE		__stringify(0x00010000)
+-#define KERNEL_SIZE		__stringify(0x005d0000)
+-#define QSPI_FDT_ADDR		__stringify(0x00220000)
+-#define QSPI_KERNEL_ADDR	__stringify(0x00230000)
++/*
++ * MiSTer-style boot (same flow as MiSTer-devel/u-boot_MiSTer, DE10-nano):
++ *
++ *   partition 1 (exFAT, MiSTer_Data):
++ *     menu.rbf             boot core, programmed before the kernel
++ *     linux/u-boot.txt     optional, imported into the environment
++ *                          (e.g. v=loglevel=4 usbhid.jspoll=1 ...)
++ *     linux/zImage_dtb     zImage with the Chameleon96 DTB appended
++ *     linux/linux.img      MiSTer root filesystem, loop-mounted by the kernel
++ *   partition 2 (type A2): SPL + U-Boot (linux/uboot.img)
++ *
++ * Main_MiSTer reboots into a core by writing "core=<rbf>" at 0x1FFFF004,
++ * 0x87654321 at 0x1FFFF000 and 0xBEEFB001 at 0x1FFFFF08 (warm reboot).
++ * That page lies in the 256MB no-map reservation of the kernel DTB, so it
++ * survives the reboot exactly as on the DE10-nano.
++ *
++ * Differences with the DE10-nano environment:
++ *   - no "mem=511M memmap=..." (the DTB reserves 0x10000000-0x1FFFFFFF)
++ *   - "mt" (MiSTer U-Boot private command) replaced by "itest.l"
++ *   - no DE10 LED poke (mw 0xff709004 0x800)
++ */
++#define MISTER_BOOTARGS \
++	"console=ttyS0,115200 $v loop.max_part=8"
+ 
+-#define SOCFPGA_BOOT_SETTINGS \
+-	"fdt_size=" FDT_SIZE "\0" \
+-	"kernel_size=" KERNEL_SIZE "\0" \
+-	"qspi_fdt_addr=" QSPI_FDT_ADDR "\0" \
+-	"qspi_kernel_addr=" QSPI_KERNEL_ADDR "\0" \
+-	"qspiboot=setenv bootargs earlycon " \
+-		"root=/dev/mtdblock1 rw rootfstype=jffs2; " \
+-		"bootz ${kernel_addr_r} - ${fdt_addr_r}\0" \
+-	"qspiload=sf probe; " \
+-		"sf read ${kernel_addr_r} ${qspi_kernel_addr} ${kernel_size}; " \
+-		"sf read ${fdt_addr_r} ${qspi_fdt_addr} ${fdt_size}\0"
++#define CFG_EXTRA_ENV_SETTINGS \
++	"loadaddr=0x01000000\0" \
++	"bootimage=/linux/zImage_dtb\0" \
++	"fdt_addr=100\0" \
++	"fpgadata=0x02000000\0" \
++	"core=menu.rbf\0" \
++	"fpgacheck=if itest.l *0x1FFFFF08 == 0xBEEFB001; then " \
++		"mw 0x1FFFFF08 0; " \
++		"if itest.l *0x1FFFF000 == 0x87654321; then " \
++			"mw 0x1FFFF000 0; env import -t 0x1FFFF004; run fpgaload; " \
++		"fi; " \
++	"else run fpgaload; fi\0" \
++	"fpgaload=load mmc 0:$mmc_boot $fpgadata $core; " \
++		"fpga load 0 $fpgadata $filesize; bridge enable; " \
++		"mw 0x1FFFF000 0; mw 0xFFD05054 0\0" \
++	"scrtest=if test -e mmc 0:$mmc_boot /linux/u-boot.txt; then " \
++		"load mmc 0:$mmc_boot $loadaddr /linux/u-boot.txt; " \
++		"env import -t $loadaddr $filesize; fi\0" \
++	"mmc_boot=1\0" \
++	"mmcroot=/dev/mmcblk0p1\0" \
++	"v=loglevel=4\0" \
++	"mmcboot=setenv bootargs " MISTER_BOOTARGS \
++		" root=$mmcroot loop=linux/linux.img ro rootwait; " \
++		"bootz $loadaddr - $fdt_addr\0" \
++	"mmcload=mmc rescan; " \
++		"run fpgacheck; " \
++		"run scrtest; " \
++		"load mmc 0:$mmc_boot $loadaddr $bootimage; " \
++		"setexpr.l fdt_addr $loadaddr + 0x2C; " \
++		"setexpr.l fdt_addr *$fdt_addr + $loadaddr\0"
+ 
+ /* The rest of the configuration is shared */
+ #include <configs/socfpga_common.h>

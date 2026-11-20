@@ -1,0 +1,112 @@
+#!/bin/sh
+#
+# /init del instalador de MiSTer para la Chameleon96 (al estilo de Mr. Fusion)
+#
+# Va dentro del kernel del instalador (initramfs). Con la tarjeta recién
+# grabada (partición 1 FAT32 "MRFUSION" + partición 2 A2):
+#
+#   1. copia mrfusion/payload.tar.xz y extra/ de la FAT32 a la RAM
+#   2. rehace la tarjeta como la de MiSTer: exFAT "MiSTer_Data" en toda la
+#      tarjeta menos 4 MB y la A2 en esos 4 MB del final
+#   3. descomprime el paquete en el exFAT y copia encima extra/
+#   4. graba linux/uboot.img en la A2 y reinicia en MiSTer
+#
+# Los binarios (busybox, sfdisk, mkfs.exfat) son los del linux.img oficial.
+#
+# Autor: Shaeon (Carlos Palmero)
+
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+A2_SECTORS=8192
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev 2>/dev/null
+exec >/dev/console 2>&1
+
+# Tarjeta: /dev/mmcblk0, salvo mrfusion.dev=... en la línea de comandos
+# (para probar el instalador en qemu con un disco virtio)
+DEV=/dev/mmcblk0
+for arg in $(cat /proc/cmdline); do
+	case $arg in mrfusion.dev=*) DEV=${arg#mrfusion.dev=} ;; esac
+done
+BLK=${DEV#/dev/}
+case $BLK in *[0-9]) PART=${DEV}p ;; *) PART=$DEV ;; esac
+
+log() { echo "mrfusion_ch96: $*"; }
+
+fail() {
+	log "ERROR: $*"
+	log "La tarjeta no se ha terminado de instalar. Vuelve a grabar la imagen."
+	while true; do sleep 3600; done
+}
+
+wait_node() {
+	n=0
+	while [ ! -b "$1" ]; do
+		n=$((n + 1))
+		[ $n -gt 100 ] && return 1
+		usleep 200000
+	done
+	return 0
+}
+
+log "Instalador de MiSTer para la Chameleon96"
+wait_node ${PART}1 || fail "no aparece ${PART}1"
+
+# ------------------------------------------------------------ 1. a la RAM
+mkdir -p /src /dst /extra
+mount -t vfat -o ro ${PART}1 /src || fail "no se puede montar la partición del instalador"
+[ -f /src/mrfusion/payload.tar.xz ] || fail "falta mrfusion/payload.tar.xz"
+
+NEED=$(( $(wc -c < /src/mrfusion/payload.tar.xz) / 1024 + 32768 ))
+FREE=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+log "paquete: $((NEED / 1024 - 32)) MB, memoria libre: $((FREE / 1024)) MB"
+[ "$FREE" -gt "$NEED" ] || fail "no hay memoria suficiente para el paquete"
+
+log "copiando el paquete a la RAM..."
+cp /src/mrfusion/payload.tar.xz /payload.tar.xz || fail "no se pudo copiar el paquete"
+[ -d /src/extra ] && cp -r /src/extra/. /extra/
+umount /src
+sync
+
+# ------------------------------------------------------ 2. particiones
+SECTORS=$(cat /sys/block/$BLK/size)
+DATA=$(( SECTORS - 2048 - A2_SECTORS ))
+log "tarjeta $DEV de $(( SECTORS / 2048 )) MB: exFAT de $(( DATA / 2048 )) MB + A2 de 4 MB"
+[ "$DATA" -gt 1048576 ] || fail "la tarjeta es demasiado pequeña (mínimo 1 GB)"
+
+sfdisk --force -q $DEV <<EOF || fail "sfdisk"
+label: dos
+start=2048, size=$DATA, type=7
+start=$(( 2048 + DATA )), size=$A2_SECTORS, type=a2
+EOF
+sync
+sleep 1
+wait_node ${PART}1 && wait_node ${PART}2 || fail "no aparecen las particiones nuevas"
+[ "$(cat /sys/block/$BLK/${PART#/dev/}1/size)" = "$DATA" ] || fail "el kernel no ha releído la tabla de particiones"
+
+# --------------------------------------------- 3. exFAT y ficheros de MiSTer
+log "formateando exFAT (MiSTer_Data)..."
+mkfs.exfat -L MiSTer_Data ${PART}1 >/dev/null || fail "mkfs.exfat"
+mount -t exfat ${PART}1 /dst || fail "no se puede montar el exFAT nuevo"
+
+log "descomprimiendo (1-2 minutos)..."
+xz -dc /payload.tar.xz | tar -x -C /dst || fail "error al descomprimir el paquete"
+rm -f /payload.tar.xz
+cp -r /extra/. /dst/ || fail "error al copiar extra/"
+sync
+
+[ -f /dst/linux/uboot.img ] && [ -f /dst/linux/zImage_dtb ] && [ -f /dst/menu.rbf ] || \
+	fail "faltan ficheros de MiSTer en el paquete"
+
+# ------------------------------------------------------- 4. U-Boot y fin
+log "grabando U-Boot en la A2..."
+dd if=/dst/linux/uboot.img of=${PART}2 bs=64k 2>/dev/null || fail "no se pudo grabar U-Boot"
+dd if=/dev/zero of=$DEV bs=512 seek=1 count=1 2>/dev/null
+umount /dst
+sync
+
+log "instalación terminada, reiniciando en MiSTer"
+sleep 2
+reboot -f
+echo b > /proc/sysrq-trigger

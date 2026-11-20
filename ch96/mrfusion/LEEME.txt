@@ -1,0 +1,20 @@
+Instalador de MiSTer para la Chameleon96
+========================================
+
+1. Mete esta tarjeta en la Chameleon96 y enciéndela.
+2. El instalador amplía la tarjeta a su tamaño completo, instala MiSTer y
+   reinicia. Tarda 2-3 minutos y la pantalla se queda en negro hasta que
+   aparece el menú de MiSTer (el progreso se ve en la consola serie, 115200).
+3. Para descargar los cores: F12 -> Scripts -> update.
+
+Carpeta "extra"
+---------------
+Lo que pongas en la carpeta "extra" antes de encender la placa se copia a la
+raíz de la SD de MiSTer al terminar, respetando las subcarpetas. Por ejemplo:
+
+  extra/linux/wpa_supplicant.conf   WiFi (adaptador USB) ya configurada
+  extra/linux/samba.sh              compartir la SD por red
+  extra/_Computer/...               cores que quieras llevar ya puestos
+  extra/MiSTer.ini                  tu MiSTer.ini en vez del de la ch96
+
+Importante: la instalación BORRA la tarjeta entera.
