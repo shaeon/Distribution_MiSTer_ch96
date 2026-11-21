@@ -243,7 +243,13 @@ oficial = games/AO486/*   ; opcional: ficheros de apoyo copiados de la distribuc
   `Arcade-`** (`Galaga_20261120.rbf`, que es lo que busca `<rbf>galaga</rbf>` en los `.mra`), y
   los `releases/*.mra` del mismo commit van a `_Arcade/`. Las ROMs (`games/mame/*.zip`) las pone
   cada usuario.
-- `[oficial]`: scripts copiados tal cual de la distribución oficial. `[menu]`: `menu.rbf`.
+- `[oficial]`: scripts copiados tal cual de la distribución oficial (`Scripts/` de
+  `MiSTer-devel/Distribution_MiSTer`: update, wifi, samba_on, timezone, ini_settings y
+  fast_USB_polling; `rtc.sh` no, porque es para la placa RTC de la DE10). `[menu]`: `menu.rbf`.
+- `ficheros`: ficheros sueltos de cualquier repositorio (`origen -> destino`), fijados a su
+  último commit. Se usa para los scripts de MidiLink (`soundfont_install.sh` y
+  `midilink_updater.sh`, de `MiSTer-devel/MidiLink_MiSTer`), que en MiSTer no vienen en la
+  distribución oficial.
 
 Cores actuales:
 

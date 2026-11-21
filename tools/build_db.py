@@ -61,15 +61,36 @@ def git(*args, cwd=None):
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout
 
 
-def latest_release(repo, branch, pattern, work):
-    """Clona sin blobs, elige el .rbf más reciente y devuelve (sha, ruta, bytes)."""
+def clone(repo, branch, work):
+    """Clon sin blobs (solo se bajan los ficheros que se leen). Devuelve (dir, sha)."""
     dest = os.path.join(work, repo.replace('/', '__') + '__' + (branch or 'HEAD'))
     if not os.path.isdir(dest):
         cmd = ['clone', '-q', '--depth', '1', '--filter=blob:none', '--no-checkout']
         if branch:
             cmd += ['-b', branch]
         git(*cmd, f'https://github.com/{repo}.git', dest)
-    sha = git('rev-parse', 'HEAD', cwd=dest).decode().strip()
+    return dest, git('rev-parse', 'HEAD', cwd=dest).decode().strip()
+
+
+def copy_repo_files(repo, branch, lines, work, files, folders):
+    """Ficheros sueltos de un repositorio, fijados a su último commit. Cada
+    línea es "ruta/en/el/repo -> ruta/en/la/SD"."""
+    dest_dir, sha = clone(repo, branch, work)
+    for line in lines:
+        if '->' not in line:
+            raise RuntimeError(f'"{line}": falta "origen -> destino"')
+        src, dst = (x.strip() for x in line.split('->', 1))
+        data = git('show', f'HEAD:{src}', cwd=dest_dir)
+        files[dst] = {'hash': hashlib.md5(data).hexdigest(), 'size': len(data),
+                      'url': raw_url(repo, sha, src)}
+        if '/' in dst:
+            add_folders(dst.rsplit('/', 1)[0], folders)
+        log(f'  {dst:45s} <- {repo}@{sha[:7]} {src}')
+
+
+def latest_release(repo, branch, pattern, work):
+    """Clona sin blobs, elige el .rbf más reciente y devuelve (sha, ruta, bytes)."""
+    dest, sha = clone(repo, branch, work)
     names = git('ls-tree', '--name-only', 'HEAD', 'releases/', cwd=dest).decode().split('\n')
     names = [os.path.basename(n) for n in names if n]
     pats = pattern.lower().split()
@@ -203,6 +224,14 @@ def build(db_url):
             if not repo:
                 errors.append(f'[{section}] sin repo')
                 continue
+            if s.get('ficheros'):
+                try:
+                    copy_repo_files(repo, s.get('branch'), ini_list(s.get('ficheros')),
+                                    work, files, folders)
+                except Exception as e:
+                    errors.append(f'[{section}] {e}')
+                if not s.get('pattern'):
+                    continue  # solo ficheros, sin core
             pattern = s.get('pattern', default_pattern(section))
             try:
                 sha, path, data, clone = latest_release(repo, s.get('branch'), pattern, work)
