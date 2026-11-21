@@ -57,6 +57,19 @@ index df3d8e38..c5bddfca 100644
 +CONFIG_CMD_BOOTZ=y
 +CONFIG_CMD_FPGA=y
 +CONFIG_BOOTDELAY=0
+diff --git a/fs/exfat/io.c b/fs/exfat/io.c
+index 77cd2dfb..04773190 100644
+--- a/fs/exfat/io.c
++++ b/fs/exfat/io.c
+@@ -412,7 +412,7 @@ struct exfat_dev* exfat_open(const char* spec, enum exfat_mode mode)
+ 		return NULL;
+ 	}
+ 	dev->mode = EXFAT_MODE_RW;
+-	dev->size = ctxt.cur_part_info.size * ctxt.cur_part_info.blksz;
++	dev->size = (off_t)ctxt.cur_part_info.size * ctxt.cur_part_info.blksz;
+ 	dev->ctxt = &ctxt;
+ 
+ 	return dev;
 diff --git a/fs/exfat/time.c b/fs/exfat/time.c
 index f2217dd7..6a2ad81d 100644
 --- a/fs/exfat/time.c

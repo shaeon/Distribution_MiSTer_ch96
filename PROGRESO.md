@@ -98,3 +98,16 @@ usb1 host con `disable-over-current`, puentes FPGA, `flags-sram` en OCRAM, i2c2 
 - Secciones Arcade-*: .rbf a _Arcade/cores/ sin "Arcade-" (Galaga_20261120.rbf, lo que pide <rbf>galaga</rbf>)
   y releases/*.mra del mismo commit a _Arcade/ (campo `mra`). Probado build_db.py: 53 ficheros; URLs de .mra con
   comillas y acento grave descargan con el md5 correcto.
+
+## U-Boot no leía exFAT en tarjetas grandes (21/11/2026)
+- Log de la placa (tarjeta de 32 GB): `file system in sectors is larger than device: 61061120 * 512 >
+  1198522368` + `Can't set block device`. 1198522368 = 31263293440 - 7*2^32: en fs/exfat/io.c (rama U-Boot)
+  `dev->size = part.size * part.blksz` multiplica dos ulong de 32 bits y se desborda en cuanto la partición
+  pasa de 4 GB. En el sandbox (64 bits) no salía.
+- Arreglo en ch96/u-boot-socfpga-chameleon96-mister.patch: `(off_t)` antes de multiplicar (off_t ya es de
+  64 bits en la librería exfat de U-Boot).
+- Probado con U-Boot qemu_arm (32 bits, sin SYS_64BIT_LBA) y un disco de 32 GB con la misma tabla que el
+  instalador: el original da el mismo error que la placa; el arreglado lee linux/zImage_dtb, situado después
+  de 6 GB de relleno, con el CRC32 correcto.
+- La A2 al principio no era el problema (el instalador ya arrancaba con el mismo uboot.img), pero se deja:
+  es también donde la pone teiram (offset 1 MB).
