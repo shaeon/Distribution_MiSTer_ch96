@@ -70,6 +70,25 @@ index 77cd2dfb..04773190 100644
  	dev->ctxt = &ctxt;
  
  	return dev;
+diff --git a/fs/exfat/node.c b/fs/exfat/node.c
+index 88b13571..ab664f6d 100644
+--- a/fs/exfat/node.c
++++ b/fs/exfat/node.c
+@@ -509,8 +509,12 @@ static int readdir(struct exfat* ef, struct exfat_node* parent,
+ 				return -EIO;
+ 			}
+ 			/* copy to a temporary buffer to avoid unaligned access to a
+-			   packed member */
+-			memcpy(label_name, label->name, sizeof(label_name));
++			   packed member. Only label->length characters are valid:
++			   some formatters (exfatprogs 1.0.4) leave garbage after
++			   them, which may be an invalid UTF-16 sequence. */
++			memset(label_name, 0, sizeof(label_name));
++			memcpy(label_name, label->name,
++					label->length * sizeof(label_name[0]));
+ 			if (exfat_utf16_to_utf8(ef->label, label_name,
+ 						sizeof(ef->label), EXFAT_ENAME_MAX) != 0)
+ 				return -EIO;
 diff --git a/fs/exfat/time.c b/fs/exfat/time.c
 index f2217dd7..6a2ad81d 100644
 --- a/fs/exfat/time.c

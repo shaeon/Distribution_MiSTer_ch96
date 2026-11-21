@@ -111,3 +111,12 @@ usb1 host con `disable-over-current`, puentes FPGA, `flags-sram` en OCRAM, i2c2 
   de 6 GB de relleno, con el CRC32 correcto.
 - La A2 al principio no era el problema (el instalador ya arrancaba con el mismo uboot.img), pero se deja:
   es también donde la pone teiram (offset 1 MB).
+
+## U-Boot: etiqueta del exFAT (21/11/2026)
+- Con el arreglo de los 4 GB la placa pasa a `illegal UTF-16 sequence` + `Can't set block device`.
+- La entrada de etiqueta del exFAT tiene 15 caracteres y un contador (11 para MiSTer_Data). U-Boot convertía
+  los 15 y solo paraba en un 0; el mkfs.exfat del linux.img (exfatprogs 1.0.4, el que usa el instalador) deja
+  basura detrás de la etiqueta. Si la basura es medio par sustituto UTF-16, no monta.
+- Arreglo en fs/exfat/node.c: copiar solo label->length caracteres y rellenar con ceros.
+- Probado en qemu_arm con un exFAT de 32 GB formateado con ese mkfs.exfat (qemu-arm-static) y basura 0xD800
+  en la etiqueta: el U-Boot anterior falla igual que la placa; el nuevo carga zImage_dtb.
