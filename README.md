@@ -139,7 +139,7 @@ sudo tools/mk_mister_ch96_sd.sh -r release_ch96_AAAAMMDD.7z /dev/sdX
 ```
 
 Con las dos opciones la SD queda con `downloader.ini` y `MiSTer.ini`
-(`video_mode=0`, 1280x720). Después, `Scripts → update` descarga los cores.
+(`video_mode=8`, 1920x1080@60). Después, `Scripts → update` descarga los cores.
 
 Si tu SD se hizo antes, sin `downloader.ini`: copia `downloader.ini` a la raíz
 de la SD y devuelve `Scripts/.ch96_disabled/update.sh` a `Scripts/`. La

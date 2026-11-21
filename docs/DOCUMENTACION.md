@@ -57,7 +57,7 @@ Contenido del exFAT (como en MiSTer):
 ```
 menu.rbf                 menú (core de la FPGA del menú)
 MiSTer                   programa principal (Main_MiSTer_ch96)
-MiSTer.ini               con video_mode=0
+MiSTer.ini               con video_mode=8 (1920x1080@60)
 downloader.ini           apunta update.sh a la base de datos de la ch96
 linux/linux.img          sistema Linux de MiSTer (oficial + firmware de red)
 linux/zImage_dtb         kernel de MiSTer + DTB de la Chameleon96

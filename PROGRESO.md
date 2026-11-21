@@ -12,7 +12,7 @@ usando el `linux.img` oficial sin tocar y solo cambiando las piezas propias de l
 | `menu.rbf` | teiram/Menu_MiSTer_ch96 último `releases/menu_*_ch96.rbf` | ok |
 | `linux/uboot.img` | teiram/u-boot-socfpga rama chameleon96 @ 1d6a164 + `patches/u-boot-socfpga-chameleon96-mister.patch` | compilado |
 | `linux/zImage_dtb` | MiSTer-devel/Linux-Kernel_MiSTer @ 912aa56 (6.18.38, el del release 20260912, para que encajen los módulos del linux.img) + `socfpga_cyclone5_chameleon96_mister.dts` | compilado (vermagic `6.18.38-MiSTer SMP mod_unload ARMv7 p2v8`, igual que los 94 módulos del linux.img) |
-| `MiSTer.ini` | MiSTer_example.ini con `video_mode=0` | ok |
+| `MiSTer.ini` | MiSTer_example.ini con `video_mode=8` (1080p60; antes 0 = 720p, como el workbench) | ok |
 | `mk_mister_ch96_sd.sh` | monta la SD o la imagen | probado: genera la imagen; U-Boot sandbox lee el exFAT, importa u-boot.txt y encuentra el DTB |
 
 ## Cambios en U-Boot (patch)
