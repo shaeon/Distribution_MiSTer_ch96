@@ -9,6 +9,8 @@
 #
 #   - cores: sources.ini, el último releases/<core>_AAAAMMDD_ch96.rbf de cada
 #     repo (también vale el formato antiguo <core>_ch96_AAAAMMDD.rbf)
+#   - arcades (secciones Arcade-*): el .rbf a _Arcade/cores/ sin "Arcade-" y
+#     los releases/*.mra del mismo commit a _Arcade/
 #   - ficheros de apoyo de los cores (ROMs de arranque...) y scripts de MiSTer
 #     copiados de la base de datos oficial: campo "oficial" de cada core y
 #     sección [oficial] de sources.ini
@@ -79,7 +81,7 @@ def latest_release(repo, branch, pattern, work):
     best = max(cands, key=lambda n: (DATE_RE.search(n).group(1),
                                      bool(DATE_RE.search(n).group(2)), n))
     data = git('show', f'HEAD:releases/{best}', cwd=dest)
-    return sha, f'releases/{best}', data
+    return sha, f'releases/{best}', data, dest
 
 
 def raw_url(repo, sha, path):
@@ -91,12 +93,45 @@ def default_pattern(section):
     return f'{section}_*_ch96.rbf {section}_ch96_*.rbf'
 
 
+def is_arcade(section):
+    return section.lower().startswith('arcade-')
+
+
 def install_name(section, filename):
     """Quita el _ch96 para que el menú muestre el core como en MiSTer:
          TS2068_20261120_ch96.rbf -> TS2068_20261120.rbf
-         TS2068_ch96_20261117.rbf -> TS2068_20261117.rbf"""
+         TS2068_ch96_20261117.rbf -> TS2068_20261117.rbf
+    En los arcades quita también el "Arcade-", como la distribución oficial,
+    porque el <rbf> de los .mra busca el core por ese nombre:
+         Arcade-Galaga_20261120_ch96.rbf -> Galaga_20261120.rbf"""
     name = re.sub(r'_ch96(?=\.rbf$)', '', filename, flags=re.IGNORECASE)
-    return re.sub(r'_ch96(?=_\d{8}\.rbf$)', '', name, flags=re.IGNORECASE)
+    name = re.sub(r'_ch96(?=_\d{8}\.rbf$)', '', name, flags=re.IGNORECASE)
+    if is_arcade(section):
+        name = re.sub(r'^arcade-', '', name, flags=re.IGNORECASE)
+    return name
+
+
+def add_folders(path, folders):
+    parts = path.split('/')
+    for i in range(1, len(parts) + 1):
+        folders.setdefault('/'.join(parts[:i]), {})
+
+
+def copy_mras(repo, sha, clone, patterns, folder, files, folders):
+    """Los .mra de releases/ del repositorio del core, a <folder>/ (los
+    arcades: _Arcade/). Se toman del mismo commit que el .rbf."""
+    names = git('ls-tree', '--name-only', 'HEAD', 'releases/', cwd=clone).decode().split('\n')
+    names = sorted(os.path.basename(n) for n in names if n)
+    mras = [n for n in names if any(fnmatch.fnmatchcase(n, p) for p in patterns)]
+    if not mras:
+        raise RuntimeError(f'{repo}: no hay releases/{" ".join(patterns)}')
+    add_folders(folder, folders)
+    for n in mras:
+        data = git('show', f'HEAD:releases/{n}', cwd=clone)
+        dest = f'{folder}/{n}'
+        files[dest] = {'hash': hashlib.md5(data).hexdigest(), 'size': len(data),
+                       'url': raw_url(repo, sha, f'releases/{n}')}
+        log(f'  {dest:45s} <- {repo}@{sha[:7]}')
 
 
 def ini_list(value):
@@ -170,7 +205,7 @@ def build(db_url):
                 continue
             pattern = s.get('pattern', default_pattern(section))
             try:
-                sha, path, data = latest_release(repo, s.get('branch'), pattern, work)
+                sha, path, data, clone = latest_release(repo, s.get('branch'), pattern, work)
             except Exception as e:  # un core roto no tumba la base de datos
                 errors.append(f'[{section}] {e}')
                 continue
@@ -179,11 +214,10 @@ def build(db_url):
             if target:
                 dest = target
             else:
-                folder = s.get('folder', '_Computer').strip('/')
+                default = '_Arcade/cores' if is_arcade(section) else '_Computer'
+                folder = s.get('folder', default).strip('/')
                 dest = f'{folder}/{install_name(section, os.path.basename(path))}'
-                parts = folder.split('/')
-                for i in range(1, len(parts) + 1):
-                    folders.setdefault('/'.join(parts[:i]), {})
+                add_folders(folder, folders)
 
             entry = {
                 'hash': hashlib.md5(data).hexdigest(),
@@ -194,6 +228,14 @@ def build(db_url):
                 entry.update({'path': 'system', 'reboot': True})
             files[dest] = entry
             log(f'  {dest:45s} <- {repo}@{sha[:7]} {path}')
+
+            mra = s.get('mra', '*.mra' if is_arcade(section) else '')
+            if mra.strip():
+                try:
+                    copy_mras(repo, sha, clone, mra.split(),
+                              s.get('mra_folder', '_Arcade').strip('/'), files, folders)
+                except Exception as e:
+                    errors.append(f'[{section}] {e}')
 
             if s.get('oficial'):
                 try:

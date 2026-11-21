@@ -61,6 +61,16 @@ folder  = _Computer       ; opcional: por defecto _Computer
 oficial = games/AO486/*   ; opcional: ficheros de apoyo de la distribución oficial
 ```
 
+**Arcades**: la sección se llama como el repositorio (`Arcade-Galaga`) y basta
+con el `repo`. El `.rbf` va a `_Arcade/cores/` sin el `Arcade-`
+(`Galaga_20261120.rbf`, que es lo que buscan los `.mra`) y los `releases/*.mra`
+del mismo commit a `_Arcade/`. Las ROMs (`games/mame/*.zip`) las pone cada uno.
+
+```ini
+[Arcade-Galaga]
+repo    = teiram/Arcade-Galaga_MiSTer_ch96
+```
+
 El nombre de la sección es el del core. El workflow busca en `releases/` el
 `ao486_AAAAMMDD_ch96.rbf` (o `ao486_ch96_AAAAMMDD.rbf`) más reciente. Las
 versiones nuevas de los cores ya listados se recogen solas cada 6 horas. Para

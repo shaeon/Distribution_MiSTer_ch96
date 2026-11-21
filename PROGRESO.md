@@ -91,3 +91,10 @@ usb1 host con `disable-over-current`, puentes FPGA, `flags-sram` en OCRAM, i2c2 
   (games/AO486/*, games/Amstrad/*, games/Amstrad PCW/*, games/PET2001/*). Admite comodines.
 - Amstrad y SharpMZ aún no tienen .rbf con el nombre nuevo: se coge el `_ch96_` antiguo.
 - Probado build_db.py: 43 ficheros.
+
+## Arcades (21/11/2026)
+- teiram/Arcade-Galaga, Arcade-Gaplus y Arcade-QBert (_MiSTer_ch96). Se buscaron los 216 arcades de la
+  distribución oficial con el prefijo teiram/Arcade-<core>_MiSTer_ch96: solo existen esos tres.
+- Secciones Arcade-*: .rbf a _Arcade/cores/ sin "Arcade-" (Galaga_20261120.rbf, lo que pide <rbf>galaga</rbf>)
+  y releases/*.mra del mismo commit a _Arcade/ (campo `mra`). Probado build_db.py: 53 ficheros; URLs de .mra con
+  comillas y acento grave descargan con el md5 correcto.
