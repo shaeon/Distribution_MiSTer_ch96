@@ -253,6 +253,7 @@ Cores actuales:
 | Arcade-Galaga, Arcade-Gaplus, Arcade-QBert | `teiram/Arcade-<core>_MiSTer_ch96` |
 | TS2068 | `Maverick-Shark/TS2068_MiSTer`, rama `ch96` |
 | IMSAI8080 | `shaeon/IMSAI8080_MiSTer`, rama `ch96` |
+| Osborne | `shaeon/Osborne_MiSTer_ch96` |
 
 Para añadir uno: nueva sección en `sources.ini` → push. En el siguiente `update.sh` aparece en la
 placa.
