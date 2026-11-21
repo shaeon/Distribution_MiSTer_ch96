@@ -120,3 +120,11 @@ usb1 host con `disable-over-current`, puentes FPGA, `flags-sram` en OCRAM, i2c2 
 - Arreglo en fs/exfat/node.c: copiar solo label->length caracteres y rellenar con ceros.
 - Probado en qemu_arm con un exFAT de 32 GB formateado con ese mkfs.exfat (qemu-arm-static) y basura 0xD800
   en la etiqueta: el U-Boot anterior falla igual que la placa; el nuevo carga zImage_dtb.
+
+## Teclado como joystick por defecto (21/11/2026)
+- Galaga (y los arcades/consolas con J1): el teclado pasa a "joystick 1" pero sin botones hasta definirlos, y el
+  mapeo se guarda por vid/pid del teclado, así que no vale un fichero en config/inputs.
+- ch96/Main_MiSTer_ch96-teclado-joystick.patch (input.cpp): si un teclado no tiene botones definidos (su mmap es la
+  de mando por defecto), map_joystick() parte de un mmap estándar: cursores, Ctrl/Alt/Espacio/Mayús = A/B/X/Y,
+  1 = Start, 2 = Select, 5 = R (Coin), P = L. build_release.sh aplica ch96/Main_MiSTer_ch96-*.patch.
+- Compila con gcc 10.2 sobre teiram/Main_MiSTer_ch96 d9799de. Sin probar en la placa.

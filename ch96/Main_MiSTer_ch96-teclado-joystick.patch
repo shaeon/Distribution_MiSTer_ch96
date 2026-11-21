@@ -1,0 +1,62 @@
+diff --git a/input.cpp b/input.cpp
+index 7245c5e..c7e8604 100644
+--- a/input.cpp
++++ b/input.cpp
+@@ -2747,6 +2747,41 @@ static uint16_t def_mmap[] = {
+ 	0x0000, 0x0000, 0x0000, 0x0000
+ };
+ 
++// Chameleon96: mapeo estándar del teclado como joystick para los cores que lo
++// fuerzan (J1 en CONF_STR: arcades y consolas), cuando ese teclado no tiene
++// botones definidos. Mismas teclas que MAME: cursores, Ctrl/Alt/Espacio/Mayús,
++// 1 = Start, 2 = Select (Start 2P), 5 = R (Coin), P = L (Pause en muchos arcades).
++static uint32_t kbd_def_mmap[NUMBUTTONS];
++
++static const uint32_t *keyboard_default_mmap()
++{
++	if (!kbd_def_mmap[SYS_BTN_UP])
++	{
++		kbd_def_mmap[SYS_BTN_RIGHT]  = KEY_RIGHT;
++		kbd_def_mmap[SYS_BTN_LEFT]   = KEY_LEFT;
++		kbd_def_mmap[SYS_BTN_DOWN]   = KEY_DOWN;
++		kbd_def_mmap[SYS_BTN_UP]     = KEY_UP;
++		kbd_def_mmap[SYS_BTN_A]      = KEY_LEFTCTRL;
++		kbd_def_mmap[SYS_BTN_B]      = KEY_LEFTALT;
++		kbd_def_mmap[SYS_BTN_X]      = KEY_SPACE;
++		kbd_def_mmap[SYS_BTN_Y]      = KEY_LEFTSHIFT;
++		kbd_def_mmap[SYS_BTN_L]      = KEY_P;
++		kbd_def_mmap[SYS_BTN_R]      = KEY_5;
++		kbd_def_mmap[SYS_BTN_SELECT] = KEY_2;
++		kbd_def_mmap[SYS_BTN_START]  = KEY_1;
++	}
++	return kbd_def_mmap;
++}
++
++static int is_keyboard_fd(int fd)
++{
++	unsigned char keys[(KEY_MAX + 7) / 8];
++	if (fd < 0) return 0;
++	memset(keys, 0, sizeof(keys));
++	if (ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(keys)), keys) < 0) return 0;
++	return test_bit(KEY_A, keys) && test_bit(KEY_Z, keys) && test_bit(KEY_SPACE, keys) && test_bit(KEY_ENTER, keys);
++}
++
+ static void apply_joycon_orientation(int dev, uint32_t *map, int loaded_saved_map)
+ {
+ 	if (loaded_saved_map || input[dev].quirk != QUIRK_JOYCON) return;
+@@ -3038,6 +3073,15 @@ static void input_cb(struct input_event *ev, struct input_absinfo *absinfo, int
+ 					{
+ 						if (input[dev].has_mmap == 1)
+ 						{
++							// Chameleon96: teclado sin botones definidos (su mmap es la de
++							// mando por defecto, con códigos BTN_*) -> mapeo estándar
++							const uint32_t a = input[dev].mmap[SYS_BTN_A] & 0xFFFF;
++							if ((!a || a >= BTN_MISC) && is_keyboard_fd(pool[dev].fd))
++							{
++								map_joystick(input[dev].map, (uint32_t *)keyboard_default_mmap(), NULL, 0);
++								printf("Keyboard %s: default joystick mapping\n", input[dev].id);
++							}
++							else
+ 							// not defined try to guess the mapping
+ 							map_joystick(input[dev].map, input[dev].mmap, input[dev].right_directions, input[dev].misc1);
+ 						}

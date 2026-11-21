@@ -6,7 +6,7 @@
 # datos de MiSTer-devel/Distribution_MiSTer) y cambia solo lo que depende de
 # la placa:
 #
-#   files/MiSTer              teiram/Main_MiSTer_ch96 (gcc 10.2, como MiSTer)
+#   files/MiSTer              teiram/Main_MiSTer_ch96 + ch96/Main_MiSTer_ch96-*.patch (gcc 10.2)
 #   files/menu.rbf            teiram/Menu_MiSTer_ch96, último menu_*_ch96.rbf (o menu_ch96_*.rbf)
 #   files/linux/zImage_dtb    kernel MiSTer (el mismo commit que el linux.img)
 #                             + ch96/socfpga_cyclone5_chameleon96_mister.dts
@@ -147,6 +147,11 @@ say "Main_MiSTer_ch96"
 rm -rf "$WORK/main"
 git clone -q --depth 1 "$MAIN_REPO" "$WORK/main"
 MAIN_SHA=$(git -C "$WORK/main" rev-parse --short HEAD)
+for p in "$ROOT"/ch96/Main_MiSTer_ch96-*.patch; do
+    [ -e "$p" ] || continue
+    echo "aplicando $(basename "$p")"
+    git -C "$WORK/main" apply "$p"
+done
 make -C "$WORK/main" -s MAKEFLAGS="-j$JOBS" >/dev/null
 GLIBC=$(arm-none-linux-gnueabihf-objdump -T "$WORK/main/bin/MiSTer" | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1)
 echo "MiSTer pide como máximo $GLIBC"
@@ -237,7 +242,7 @@ release_ch96_$VERSION
 linux.img oficial $OFFICIAL_VER ($(basename "$LINUX_URL")), módulos $MODVER
 kernel  MiSTer-devel/Linux-Kernel_MiSTer $KERNEL_REF + ch96/$DTS.dts + ch96/kernel.fragment
 u-boot  teiram/u-boot-socfpga $UBOOT_BRANCH@$UBOOT_SHA + ch96/u-boot-socfpga-chameleon96-mister.patch
-MiSTer  teiram/Main_MiSTer_ch96@$MAIN_SHA
+MiSTer  teiram/Main_MiSTer_ch96@$MAIN_SHA + ch96/Main_MiSTer_ch96-*.patch
 menu    teiram/Menu_MiSTer_ch96 $MENU
 EOF
 

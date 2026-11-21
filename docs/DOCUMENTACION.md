@@ -99,7 +99,7 @@ zImage_dtb) → `Starting kernel ...` → arranque de Linux.
 | `linux/zImage_dtb` | `MiSTer-devel/Linux-Kernel_MiSTer`, el mismo commit que el release oficial (para que valgan sus módulos) | `ch96/kernel.fragment` (red USB) + DTB de la ch96 |
 | DTB | `ch96/socfpga_cyclone5_chameleon96_mister.dts`: DTS de teiram + nodos de MiSTer de la DE10 | ver §4.1 |
 | `linux/uboot.img` | `teiram/u-boot-socfpga` rama `chameleon96` | `ch96/u-boot-socfpga-chameleon96-mister.patch` (ver §4.2) |
-| `MiSTer` | `teiram/Main_MiSTer_ch96`, compilado con gcc 10.2 (glibc del linux.img) | — |
+| `MiSTer` | `teiram/Main_MiSTer_ch96`, compilado con gcc 10.2 (glibc del linux.img) | `ch96/Main_MiSTer_ch96-*.patch` (ver §4.3) |
 | `menu.rbf` | `teiram/Menu_MiSTer_ch96`, último `releases/menu_*_ch96.rbf` | — |
 | Scripts | distribución oficial de MiSTer | — |
 
@@ -129,6 +129,29 @@ memoria de teiram). Añadido de la DE10 de MiSTer:
   3. `fs/exfat/node.c`: la etiqueta del volumen se convertía entera (15 caracteres) en vez de
      solo los válidos; con basura detrás, no montaba.
 
+### 4.3 Patch del Main: teclado como joystick por defecto
+
+Los cores con `J1` en el CONF_STR (arcades y consolas) ponen el teclado en modo "joystick 1",
+pero en MiSTer el teclado no tiene botones hasta que se definen en el OSD, y el mapeo se guarda
+por modelo de teclado (`config/inputs/<core>_input_<vid>_<pid>_v4.map`). Con una tarjeta nueva
+no se podían meter monedas en Galaga.
+
+`ch96/Main_MiSTer_ch96-teclado-joystick.patch`: si el teclado no tiene botones definidos, usa
+este mapeo estándar (las teclas de MAME), que se reparte por los nombres de botón de cada core
+como en MiSTer:
+
+| Botón estándar | Tecla | En los arcades |
+|---|---|---|
+| Cruceta | cursores | |
+| A, B, X, Y | Ctrl izq., Alt izq., Espacio, Mayús izq. | Fire = A |
+| Start | `1` | Start 1P |
+| Select | `2` | Start 2P |
+| R | `5` | Coin |
+| L | `P` | Pause (Galaga) |
+
+Si el usuario define los botones del teclado (en el menú o en el core), manda lo suyo.
+`build_release.sh` aplica todos los `ch96/Main_MiSTer_ch96-*.patch` al Main de teiram.
+
 ---
 
 ## 5. El repositorio
@@ -141,6 +164,7 @@ downloader.ini               se copia a la SD
 ch96/
   socfpga_cyclone5_chameleon96_mister.dts
   u-boot-socfpga-chameleon96-mister.patch
+  Main_MiSTer_ch96-teclado-joystick.patch
   kernel.fragment            opciones del kernel añadidas (red USB)
   kernel_versions.txt        "AAMMDD commit" del kernel de cada linux.img oficial
   MiSTer.ini
@@ -337,6 +361,8 @@ Si `git push` dice `rejected (fetch first)`, son commits de los workflows: `git 
 | Tras instalar no arrancaba (tarjeta de 128 GB) | se pensó que era la A2 al final; no lo era | A2 al principio (se deja así) |
 | Teiram cambia el nombre de los `.rbf` a `_AAAAMMDD_ch96.rbf` | — | `build_db.py` y `build_release.sh` aceptan los dos formatos |
 | U-Boot: `file system in sectors is larger than device` + `Can't set block device` | tamaño de la partición calculado en 32 bits (`fs/exfat/io.c`): con más de 4 GB se desborda | multiplicar en 64 bits |
+| Imagen rara (720p) | `video_mode=0` copiado del workbench | `video_mode=8` (1080p60) |
+| Galaga: no se pueden meter monedas con el teclado | en MiSTer el teclado no tiene botones de joystick hasta definirlos | mapeo estándar por defecto en el Main (§4.3) |
 | U-Boot: `illegal UTF-16 sequence` + `Can't set block device` | U-Boot convertía los 15 caracteres de la etiqueta y el `mkfs.exfat` del linux.img (exfatprogs 1.0.4) deja basura detrás de `MiSTer_Data` | convertir solo los caracteres válidos (`fs/exfat/node.c`) |
 
 Lecciones:
@@ -348,7 +374,7 @@ Lecciones:
 - Antes de cambiar nada, pedir la **consola serie**: dice exactamente en qué paso se para.
 
 Patches del repositorio, en orden: 0001–0005 (CI, red USB), 0006 (A2 al principio), 0007 (cores
-y nombre nuevo), 0008 (arcades), 0009 (exFAT > 4 GB), 0010 (etiqueta exFAT).
+y nombre nuevo), 0008 (arcades), 0009 (exFAT > 4 GB), 0010 (etiqueta exFAT), 0011 (esta documentación), 0012 (1080p60), 0013 (teclado como joystick).
 
 ---
 
