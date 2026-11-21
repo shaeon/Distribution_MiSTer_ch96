@@ -9,6 +9,9 @@ Este repositorio es, para la Chameleon96, lo que
 para la DE10-Nano: publica un `db.json.zip` con los cores, el `menu.rbf`, el
 binario `MiSTer` y el Linux propios de la placa.
 
+
+Documentación completa del proceso (arranque, piezas, actualizador, instalador y problemas resueltos): [docs/DOCUMENTACION.md](docs/DOCUMENTACION.md).
+
 ## Cómo funciona
 
 ```
