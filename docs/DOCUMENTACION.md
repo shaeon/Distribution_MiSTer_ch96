@@ -287,6 +287,7 @@ Cores actuales:
 | TS2068 | `Maverick-Shark/TS2068_MiSTer`, rama `ch96` |
 | IMSAI8080 | `shaeon/IMSAI8080_MiSTer`, rama `ch96` |
 | Osborne | `shaeon/Osborne_MiSTer_ch96` |
+| Lynx | `shaeon/Lynx_MiSTer_ch96` |
 
 Para añadir uno: nueva sección en `sources.ini` → push. En el siguiente `update.sh` aparece en la
 placa.
@@ -408,7 +409,7 @@ Lecciones:
 - Antes de cambiar nada, pedir la **consola serie**: dice exactamente en qué paso se para.
 
 Patches del repositorio, en orden: 0001–0005 (CI, red USB), 0006 (A2 al principio), 0007 (cores
-y nombre nuevo), 0008 (arcades), 0009 (exFAT > 4 GB), 0010 (etiqueta exFAT), 0011 (esta documentación), 0012 (1080p60), 0013 (teclado como joystick), 0014 (Osborne), 0015 (scripts de MidiLink), 0016 (etiquetas para los filtros).
+y nombre nuevo), 0008 (arcades), 0009 (exFAT > 4 GB), 0010 (etiqueta exFAT), 0011 (esta documentación), 0012 (1080p60), 0013 (teclado como joystick), 0014 (Osborne), 0015 (scripts de MidiLink), 0016 (etiquetas para los filtros), 0017 (Lynx).
 
 ---
 
