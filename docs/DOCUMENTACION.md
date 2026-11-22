@@ -251,6 +251,33 @@ oficial = games/AO486/*   ; opcional: ficheros de apoyo copiados de la distribuc
   `midilink_updater.sh`, de `MiSTer-devel/MidiLink_MiSTer`), que en MiSTer no vienen en la
   distribución oficial.
 
+### Filtros
+
+Cada fichero de la base de datos lleva etiquetas con los mismos nombres que la distribución
+oficial, así que valen los mismos filtros del Downloader que en MiSTer. Se ponen en
+`downloader.ini`, en la sección `[distribution_mister]` (o en `[mister]` para todas):
+
+```ini
+[distribution_mister]
+db_url = https://raw.githubusercontent.com/shaeon/Distribution_MiSTer_ch96/main/db.json.zip
+filter = computer !ao486
+```
+
+| Etiqueta | Qué lleva |
+|---|---|
+| `essential` | `MiSTer`, `menu.rbf`, `update.sh` (se instalan siempre) |
+| `cores` | todos los `.rbf` |
+| `computer` (`computercores`), `arcade` (`arcadecores`)... | por carpeta |
+| nombre del core: `ao486`, `amstradpcw`, `osborne`, `arcadegalaga`... | el core y sus ficheros |
+| `mra`, `arcaderbfsonly` | los `.mra` y los `.rbf` de los arcades |
+| `scripts` y el nombre del script (`wifi`, `soundfontinstall`...) | `Scripts/` |
+| `games`, `bios`, `palettes`... | ficheros de apoyo copiados de la oficial (con sus etiquetas) |
+
+Los `.mra` y los ficheros copiados de la oficial conservan sus etiquetas (orientación de
+pantalla, controles...). Los alias (`computer` = `computercores`...) también salen de la oficial.
+Probado con el Downloader 2.4 en modo PC: `filter = osborne scripts` instala solo el Osborne, los
+scripts y lo esencial; `filter = arcade`, solo los arcades y lo esencial.
+
 Cores actuales:
 
 | Sección | Repositorio |
@@ -381,7 +408,7 @@ Lecciones:
 - Antes de cambiar nada, pedir la **consola serie**: dice exactamente en qué paso se para.
 
 Patches del repositorio, en orden: 0001–0005 (CI, red USB), 0006 (A2 al principio), 0007 (cores
-y nombre nuevo), 0008 (arcades), 0009 (exFAT > 4 GB), 0010 (etiqueta exFAT), 0011 (esta documentación), 0012 (1080p60), 0013 (teclado como joystick).
+y nombre nuevo), 0008 (arcades), 0009 (exFAT > 4 GB), 0010 (etiqueta exFAT), 0011 (esta documentación), 0012 (1080p60), 0013 (teclado como joystick), 0014 (Osborne), 0015 (scripts de MidiLink), 0016 (etiquetas para los filtros).
 
 ---
 

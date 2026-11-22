@@ -72,7 +72,7 @@ def clone(repo, branch, work):
     return dest, git('rev-parse', 'HEAD', cwd=dest).decode().strip()
 
 
-def copy_repo_files(repo, branch, lines, work, files, folders):
+def copy_repo_files(repo, branch, lines, work, files, folders, extra_tags=()):
     """Ficheros sueltos de un repositorio, fijados a su último commit. Cada
     línea es "ruta/en/el/repo -> ruta/en/la/SD"."""
     dest_dir, sha = clone(repo, branch, work)
@@ -83,8 +83,12 @@ def copy_repo_files(repo, branch, lines, work, files, folders):
         data = git('show', f'HEAD:{src}', cwd=dest_dir)
         files[dst] = {'hash': hashlib.md5(data).hexdigest(), 'size': len(data),
                       'url': raw_url(repo, sha, src)}
+        if dst.startswith('Scripts/'):
+            add_tags(files[dst], ['scripts', tag_name(os.path.basename(dst).rsplit('.', 1)[0])])
+        add_tags(files[dst], extra_tags)
         if '/' in dst:
-            add_folders(dst.rsplit('/', 1)[0], folders)
+            add_folders(dst.rsplit('/', 1)[0], folders,
+                        ['scripts'] if dst.startswith('Scripts/') else None)
         log(f'  {dst:45s} <- {repo}@{sha[:7]} {src}')
 
 
@@ -132,13 +136,43 @@ def install_name(section, filename):
     return name
 
 
-def add_folders(path, folders):
+# Etiquetas para los filtros del Downloader ("filter =" en downloader.ini). Se
+# usan los mismos nombres que la distribución oficial, para que valgan los
+# mismos filtros que en MiSTer.
+CATEGORY_TAGS = {
+    '_Computer': ['computercores'],
+    '_Console': ['consolecores'],
+    '_Other': ['othercores'],
+    '_Utility': ['utility'],
+    '_Arcade': ['arcadecores'],
+    '_Arcade/cores': ['arcadecores'],
+}
+
+
+def tag_name(text):
+    """ "Amstrad-PCW" -> "amstradpcw", como los nombres de la oficial."""
+    return re.sub(r'[^a-z0-9]', '', text.lower())
+
+
+def add_tags(entry, tags):
+    for t in tags:
+        if t and t not in entry.setdefault('tags', []):
+            entry['tags'].append(t)
+
+
+def add_folders(path, folders, tags=None):
+    """Crea la carpeta y sus padres. Las carpetas de categoría (_Computer...)
+    llevan sus etiquetas, como en la oficial."""
     parts = path.split('/')
     for i in range(1, len(parts) + 1):
-        folders.setdefault('/'.join(parts[:i]), {})
+        sub = '/'.join(parts[:i])
+        entry = folders.setdefault(sub, {})
+        add_tags(entry, CATEGORY_TAGS.get(sub, []))
+        if sub == path and tags:
+            add_tags(entry, tags)
 
 
-def copy_mras(repo, sha, clone, patterns, folder, files, folders):
+def copy_mras(repo, sha, clone, patterns, folder, files, folders, name_tag=''):
     """Los .mra de releases/ del repositorio del core, a <folder>/ (los
     arcades: _Arcade/). Se toman del mismo commit que el .rbf."""
     names = git('ls-tree', '--name-only', 'HEAD', 'releases/', cwd=clone).decode().split('\n')
@@ -152,6 +186,8 @@ def copy_mras(repo, sha, clone, patterns, folder, files, folders):
         dest = f'{folder}/{n}'
         files[dest] = {'hash': hashlib.md5(data).hexdigest(), 'size': len(data),
                        'url': raw_url(repo, sha, f'releases/{n}')}
+        # Las de la oficial (pantalla, controles...); si no está, las básicas
+        add_tags(files[dest], official_tags(dest) or ['arcadecores', 'mra', name_tag])
         log(f'  {dest:45s} <- {repo}@{sha[:7]}')
 
 
@@ -172,6 +208,14 @@ def official_db():
     return _official
 
 
+def official_tags(path, kind='files'):
+    """Etiquetas (por nombre) de una entrada de la base de datos oficial."""
+    official = official_db()
+    names = {v: k for k, v in official.get('tag_dictionary', {}).items()}
+    desc = official.get(kind, {}).get(path) or {}
+    return [names.get(t, t) if isinstance(t, int) else t for t in desc.get('tags', [])]
+
+
 def copy_official(patterns, files, folders):
     """Copia entradas tal cual de la base de datos oficial de MiSTer: scripts
     que no dependen de la placa (wifi.sh, samba_on.sh...) y ficheros de apoyo
@@ -188,9 +232,11 @@ def copy_official(patterns, files, folders):
             desc = official['files'][path]
             files[path] = {'hash': desc['hash'], 'size': desc['size'],
                            'url': desc.get('url') or base + urllib.parse.quote(path)}
+            add_tags(files[path], official_tags(path))
             parts = path.split('/')[:-1]
             for i in range(1, len(parts) + 1):
-                folders.setdefault('/'.join(parts[:i]), {})
+                sub = '/'.join(parts[:i])
+                add_folders(sub, folders, official_tags(sub, 'folders'))
             log(f'  {path:45s} <- MiSTer-devel/Distribution_MiSTer')
 
 
@@ -227,7 +273,7 @@ def build(db_url):
             if s.get('ficheros'):
                 try:
                     copy_repo_files(repo, s.get('branch'), ini_list(s.get('ficheros')),
-                                    work, files, folders)
+                                    work, files, folders, s.get('tags', '').split())
                 except Exception as e:
                     errors.append(f'[{section}] {e}')
                 if not s.get('pattern'):
@@ -240,13 +286,18 @@ def build(db_url):
                 continue
 
             target = s.get('target')
+            name_tag = tag_name(section)  # "Arcade-Galaga" -> "arcadegalaga", como en la oficial
             if target:
                 dest = target
+                tags = ['cores', 'essential', name_tag] if target == 'menu.rbf' else [name_tag]
             else:
                 default = '_Arcade/cores' if is_arcade(section) else '_Computer'
                 folder = s.get('folder', default).strip('/')
                 dest = f'{folder}/{install_name(section, os.path.basename(path))}'
-                add_folders(folder, folders)
+                add_folders(folder, folders, ['cores'])
+                tags = CATEGORY_TAGS.get(folder, []) + ['cores', name_tag]
+                if is_arcade(section):
+                    tags.append('arcaderbfsonly')
 
             entry = {
                 'hash': hashlib.md5(data).hexdigest(),
@@ -255,6 +306,7 @@ def build(db_url):
             }
             if dest == 'menu.rbf':
                 entry.update({'path': 'system', 'reboot': True})
+            add_tags(entry, tags + s.get('tags', '').split())
             files[dest] = entry
             log(f'  {dest:45s} <- {repo}@{sha[:7]} {path}')
 
@@ -262,7 +314,8 @@ def build(db_url):
             if mra.strip():
                 try:
                     copy_mras(repo, sha, clone, mra.split(),
-                              s.get('mra_folder', '_Arcade').strip('/'), files, folders)
+                              s.get('mra_folder', '_Arcade').strip('/'), files, folders,
+                              name_tag)
                 except Exception as e:
                     errors.append(f'[{section}] {e}')
 
@@ -279,8 +332,29 @@ def build(db_url):
             'hash': m['hash'], 'size': m['size'], 'url': m['url'],
             'path': 'system', 'reboot': True,
             'backup': '.MiSTer.old', 'tmp': 'MiSTer.new',
+            'tags': ['essential', 'misterfirmware'],
         }
         log(f'  {"MiSTer":45s} <- {m["url"]}')
+
+    # Etiquetas por número, con su diccionario (como la oficial: ocupa menos)
+    names = sorted({t for e in list(files.values()) + list(folders.values())
+                    for t in e.get('tags', [])})
+    tag_dictionary = {t: i for i, t in enumerate(names)}
+    for e in list(files.values()) + list(folders.values()):
+        if 'tags' in e:
+            e['tags'] = [tag_dictionary[t] for t in e['tags']]
+    # Alias de la oficial: "computer" = "computercores", "arcade" = "arcadecores"...
+    try:
+        official = official_db().get('tag_dictionary', {})
+        by_num = {}
+        for name, num in official.items():
+            by_num.setdefault(num, []).append(name)
+        for name in names:
+            for alias in by_num.get(official.get(name), []):
+                tag_dictionary.setdefault(alias, tag_dictionary[name])
+    except Exception as e:
+        log(f'AVISO: sin alias de etiquetas de la oficial ({e})')
+    tag_dictionary = dict(sorted(tag_dictionary.items()))
 
     db = {
         'v': 1,
@@ -289,6 +363,7 @@ def build(db_url):
         'timestamp': 0,
         'files': dict(sorted(files.items())),
         'folders': dict(sorted(folders.items())),
+        'tag_dictionary': tag_dictionary,
     }
 
     linux = load_json('linux.json')
