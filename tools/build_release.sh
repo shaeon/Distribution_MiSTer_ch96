@@ -227,6 +227,13 @@ for p in paths:
     print('  ' + p)
 EOF
 
+say "Scripts propios de la ch96 (ch96/Scripts)"
+for s in "$ROOT"/ch96/Scripts/*.sh; do
+	[ -f "$s" ] || continue
+	install -D -m 755 "$s" "$FILES/Scripts/$(basename "$s")"
+	echo "  Scripts/$(basename "$s")"
+done
+
 cat > "$FILES/downloader.ini" <<EOF
 [MiSTer]
 update_linux = true

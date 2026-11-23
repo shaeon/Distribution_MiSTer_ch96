@@ -63,7 +63,7 @@ linux/linux.img          sistema Linux de MiSTer (oficial + firmware de red)
 linux/zImage_dtb         kernel de MiSTer + DTB de la Chameleon96
 linux/uboot.img          SPL + U-Boot (copia de lo que hay en la A2)
 linux/u-boot.txt, updateboot, ch96_build.txt ...
-Scripts/                 update.sh, wifi.sh, samba_on.sh...
+Scripts/                 update.sh, wifi.sh, samba_on.sh..., update_extras.sh
 _Computer/, _Arcade/ ... cores (los instala update.sh)
 ```
 
@@ -102,6 +102,7 @@ zImage_dtb) → `Starting kernel ...` → arranque de Linux.
 | `MiSTer` | `teiram/Main_MiSTer_ch96`, compilado con gcc 10.2 (glibc del linux.img) | `ch96/Main_MiSTer_ch96-*.patch` (ver §4.3) |
 | `menu.rbf` | `teiram/Menu_MiSTer_ch96`, último `releases/menu_*_ch96.rbf` | — |
 | Scripts | distribución oficial de MiSTer | — |
+| `Scripts/update_extras.sh` | `ch96/Scripts/` de este repositorio | BIOS y ROMs de arcade (ver §BIOS y ROMs) |
 
 ### 4.1 DTS
 
@@ -249,7 +250,42 @@ oficial = games/AO486/*   ; opcional: ficheros de apoyo copiados de la distribuc
 - `ficheros`: ficheros sueltos de cualquier repositorio (`origen -> destino`), fijados a su
   último commit. Se usa para los scripts de MidiLink (`soundfont_install.sh` y
   `midilink_updater.sh`, de `MiSTer-devel/MidiLink_MiSTer`), que en MiSTer no vienen en la
-  distribución oficial.
+  distribución oficial, y para los scripts propios de la ch96 (`[ch96-scripts]`, que coge
+  `ch96/Scripts/` de este mismo repositorio). `build_release.sh` mete además `ch96/Scripts/*.sh`
+  en el paquete, para que vengan ya en la SD.
+
+### BIOS y ROMs de arcade: `Scripts/update_extras.sh`
+
+`update_all` no vale en la ch96: instalaría la distribución de la DE10 y la placa dejaría de
+arrancar. `update_extras.sh` hace lo que hace `update_all` en «Extra Content» con dos bases de
+datos, pero llamando al Downloader oficial (`Scripts/update.sh`):
+
+| Base de datos | Origen |
+|---|---|
+| `bios_db` | `ajgowans/BiosDB_MiSTer` |
+| `arcade_roms_db` | `zakk4223/ArcadeROMsDB_MiSTer` |
+
+1. Mira los `.rbf` de `_Computer`, `_Console`, `_Other`, `_Utility` y `_Arcade/cores` y saca el
+   nombre de cada core sin fecha ni `_ch96`, normalizado como las etiquetas del Downloader.
+2. Escribe `Scripts/.config/update_extras/downloader.ini` con esas dos bases de datos y un
+   `filter =` en cada una (`<core>` en `bios_db`, `arcade<core>` en `arcade_roms_db`), y lanza el
+   Downloader con `DOWNLOADER_INI_PATH` apuntando ahí, `ALLOW_REBOOT=0` y `UPDATE_LINUX=false`.
+   Como ese ini no tiene `[distribution_mister]`, no toca cores, `MiSTer`, `menu.rbf` ni Linux.
+3. Al terminar revisa los `zip="..."` de los `.mra` instalados y avisa de las ROMs que falten
+   (solo aviso).
+
+Los alias entre el nombre del core y la etiqueta de `bios_db` están en la función `aliases()`
+del script (en la ch96 «Lynx» es el Camputers Lynx: no lleva alias a `atarilynx`).
+
+Comprobado con el Downloader 2.4 en modo PC sobre una SD simulada:
+
+- Solo escribe en `games/` y en `Scripts/.config/`. El almacén del Downloader
+  (`Scripts/.config/downloader/downloader.json`) es el mismo que el de `update.sh`: después,
+  `Scripts → update` no borra las ROMs y `update_extras` no borra los cores.
+- Si se borra un core y se vuelve a lanzar `update_extras`, el Downloader borra las ROMs/BIOS que
+  había bajado para ese core (las que pone cada uno a mano no las toca).
+- Los términos del filtro sin ficheros (cores sin BIOS, como `ao486` u `osborne`) salen como
+  «Unused filter terms»: es normal.
 
 ### Filtros
 

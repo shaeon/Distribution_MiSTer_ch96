@@ -37,6 +37,11 @@ sin arrancar).
 - **Scripts de MiSTer**: la sección `[oficial]` de `sources.ini` copia de la
   base de datos oficial los scripts que no dependen de la placa (`update.sh`,
   `wifi.sh`, `samba_on.sh`, `timezone.sh`...).
+- **BIOS y ROMs de arcade**: `Scripts/update_extras.sh` (en `ch96/Scripts/`)
+  baja con el Downloader oficial las BIOS (`bios_db`) y las ROMs de arcade
+  (`arcade_roms_db`) **solo de los cores instalados**, como «Extra Content» de
+  `update_all`. No usa `update_all`, que instalaría la distribución de la
+  DE10. Detalles en `docs/DOCUMENTACION.md`.
 - **Cores**: los `.rbf` se quedan en sus repositorios. La URL de la base de
   datos apunta al fichero fijado a su commit. Al instalar se quita el `_ch96`
   del nombre (`ao486_20261120_ch96.rbf` → `_Computer/ao486_20261120.rbf`), y

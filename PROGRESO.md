@@ -46,6 +46,10 @@ usb1 host con `disable-over-current`, puentes FPGA, `flags-sram` en OCRAM, i2c2 
 - [ ] WiFi integrada (BCM4343W por SDIO hacia la FPGA): necesita un controlador SDIO en la FPGA. De momento, WiFi USB.
 - [x] Red USB por cable: ch96/kernel.fragment (RTL8152/8153/8156, ASIX, AX88179, CDC ECM/NCM, RNDIS) + firmware rtl_nic en el linux.img (ampliado 16 MB). SSH ya venía en el linux.img (root / 1).
 - [ ] Sonido de Linux (spi-audio) desactivado en el sys de ch96.
+- [x] Scripts/update_extras.sh (BIOS y ROMs de arcade de los cores instalados, bios_db + arcade_roms_db,
+      sin update_all). Probado con el Downloader 2.4 en modo PC; falta probarlo en la placa.
+- [ ] Parpadeo de la pantalla con los scripts en el terminal del framebuffer (fb_terminal=1) a 1080p:
+      probar fb_size=2 y, si sigue, fb_terminal=0 (salida en el OSD) o video_mode=0.
 
 ## Comprobado (sin placa)
 
