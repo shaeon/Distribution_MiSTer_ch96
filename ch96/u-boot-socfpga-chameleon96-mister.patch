@@ -23,6 +23,33 @@ index 3101af16..03ce903c 100644
 +{
 +	return 0x10000000;
 +}
+diff --git a/board/novtech/chameleon96/qts/pinmux_config.h b/board/novtech/chameleon96/qts/pinmux_config.h
+index 751e416e..ff1c6c05 100644
+--- a/board/novtech/chameleon96/qts/pinmux_config.h
++++ b/board/novtech/chameleon96/qts/pinmux_config.h
+@@ -52,10 +52,10 @@ const u8 sys_mgr_init_table[] = {
+ 	0, /* GENERALIO6 */
+ 	1, /* GENERALIO7 */
+ 	1, /* GENERALIO8 */
+-	3, /* GENERALIO9 */
+-	3, /* GENERALIO10 */
+-	3, /* GENERALIO11 */
+-	3, /* GENERALIO12 */
++	0, /* GENERALIO9 */ /* MiSTer: SPIM0 a la FPGA (sonido de Linux) */
++	0, /* GENERALIO10 */ /* MiSTer: SPIM0 a la FPGA (sonido de Linux) */
++	0, /* GENERALIO11 */ /* MiSTer: SPIM0 a la FPGA (sonido de Linux) */
++	0, /* GENERALIO12 */ /* MiSTer: SPIM0 a la FPGA (sonido de Linux) */
+ 	3, /* GENERALIO13 */
+ 	3, /* GENERALIO14 */
+ 	1, /* GENERALIO15 */
+@@ -217,6 +217,6 @@ const u8 sys_mgr_init_table[] = {
+ 	0, /* I2C1USEFPGA */
+ 	0, /* SPIM1USEFPGA */
+ 	0, /* USB0USEFPGA */
+-	0 /* SPIM0USEFPGA */
++	1 /* SPIM0USEFPGA */ /* MiSTer: como en la DE10 */
+ };
+ #endif /* __SOCFPGA_PINMUX_CONFIG_H__ */
 diff --git a/configs/socfpga_chameleon96_defconfig b/configs/socfpga_chameleon96_defconfig
 index df3d8e38..c5bddfca 100644
 --- a/configs/socfpga_chameleon96_defconfig

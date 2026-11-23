@@ -112,7 +112,8 @@ memoria de teiram). Añadido de la DE10 de MiSTer:
 - `MiSTer_fb` en 0x1D000000 con IRQ `<0 40 1>`.
 - Puentes FPGA, `flags-sram` en la OCRAM.
 - usb1 en modo host con `disable-over-current`; uart sin DMA; i2c2 a 100 kHz (TDA19988).
-- Sin `gmac` (no hay PHY), sin audio SPI y sin LEDs GPIO (van por la FPGA).
+- `spi-audio` en `&spi0` (sonido de Linux), igual que en la DE10. Ver §8.1.
+- Sin `gmac` (no hay PHY) y sin LEDs GPIO (van por la FPGA).
 
 ### 4.2 Patch de U-Boot
 
@@ -120,6 +121,9 @@ memoria de teiram). Añadido de la DE10 de MiSTer:
   reinicio en caliente del core.
 - `mt` (comando propio del U-Boot de MiSTer) cambiado por `itest.l`.
 - `CONFIG_ENV_IS_NOWHERE`: siempre el entorno por defecto.
+- Pinmux: el SPI0 del HPS (SPIM0) va a la FPGA (`SPIM0USEFPGA = 1`, GENERALIO9-12 libres), como
+  en el U-Boot de MiSTer para la DE10. teiram lo tenía sacado a los pines del conector de
+  expansión. Hace falta para el sonido de Linux (§8.1).
 - `board_get_usable_ram_top()` = 0x10000000, para que U-Boot no se coloque encima de la página
   de avisos de 0x1FFFF000.
 - **exFAT** (`CONFIG_FS_EXFAT=y`) con tres arreglos del código exFAT de U-Boot en 32 bits:
@@ -363,6 +367,25 @@ Se prueba en qemu con `tools/test_mrfusion_qemu.sh`.
   controlador SDIO en el framework de cada core. Está estudiado en `wifi_bt_integrados_ch96.md`
   y no está hecho.
 
+### 8.1 Sonido de Linux: MIDI del ao486 (MidiLink), MP3...
+
+En MiSTer, el ao486 manda el MIDI por la UART a Linux (`/dev/ttyS1`), MidiLink lo pasa a
+FluidSynth (General MIDI, con soundfont) o a MUNT (MT-32), y el audio que generan sale por la
+tarjeta de sonido de MiSTer (driver `MiSTer,spi-audio`). Ese driver deja el audio en un búfer de
+la RAM de Linux y le pasa su dirección a la FPGA por el SPI0 del HPS. El módulo `alsa.sv` del
+framework lo lee de la DDR y lo mezcla con el sonido del core.
+
+Para que funcione en la ch96 hacen falta tres cosas:
+
+| Pieza | Dónde | Estado |
+|---|---|---|
+| Nodo `spi-audio` en `&spi0` | DTS (este repo) | hecho |
+| SPIM0 del HPS hacia la FPGA (`SPIM0USEFPGA = 1`) | pinmux de U-Boot (este repo) | hecho |
+| `alsa.sv` y el SPI en el core: sin `MISTER_DISABLE_ALSA` y con la asignación `HPS_LOCATION ... SPIMASTER` en `sys/hps_ch96.tcl` | cada core (teiram) | **pendiente** |
+
+Mientras los cores se compilen con `MISTER_DISABLE_ALSA=1` (todos los de la ch96 a 23/11/2026),
+MidiLink no suena. El OPL3 (AdLib/Sound Blaster) del ao486 no depende de Linux y sí suena.
+
 ---
 
 ## 9. Instalar en una tarjeta
@@ -434,6 +457,7 @@ Si `git push` dice `rejected (fetch first)`, son commits de los workflows: `git 
 | U-Boot: `file system in sectors is larger than device` + `Can't set block device` | tamaño de la partición calculado en 32 bits (`fs/exfat/io.c`): con más de 4 GB se desborda | multiplicar en 64 bits |
 | Imagen rara (720p) | `video_mode=0` copiado del workbench | `video_mode=8` (1080p60) |
 | Galaga: no se pueden meter monedas con el teclado | en MiSTer el teclado no tiene botones de joystick hasta definirlos | mapeo estándar por defecto en el Main (§4.3) |
+| MIDI del ao486 sin sonido (soundfonts y MidiLink bien) | no hay sonido de Linux en la ch96: DTS sin `spi-audio`, SPIM0 sacado a pines y cores con `MISTER_DISABLE_ALSA` | DTS y U-Boot arreglados; falta el core (§8.1) |
 | U-Boot: `illegal UTF-16 sequence` + `Can't set block device` | U-Boot convertía los 15 caracteres de la etiqueta y el `mkfs.exfat` del linux.img (exfatprogs 1.0.4) deja basura detrás de `MiSTer_Data` | convertir solo los caracteres válidos (`fs/exfat/node.c`) |
 
 Lecciones:
@@ -445,7 +469,7 @@ Lecciones:
 - Antes de cambiar nada, pedir la **consola serie**: dice exactamente en qué paso se para.
 
 Patches del repositorio, en orden: 0001–0005 (CI, red USB), 0006 (A2 al principio), 0007 (cores
-y nombre nuevo), 0008 (arcades), 0009 (exFAT > 4 GB), 0010 (etiqueta exFAT), 0011 (esta documentación), 0012 (1080p60), 0013 (teclado como joystick), 0014 (Osborne), 0015 (scripts de MidiLink), 0016 (etiquetas para los filtros), 0017 (Lynx).
+y nombre nuevo), 0008 (arcades), 0009 (exFAT > 4 GB), 0010 (etiqueta exFAT), 0011 (esta documentación), 0012 (1080p60), 0013 (teclado como joystick), 0014 (Osborne), 0015 (scripts de MidiLink), 0016 (etiquetas para los filtros), 0017 (Lynx), 0018 (sonido de Linux: DTS y U-Boot).
 
 ---
 
@@ -454,7 +478,7 @@ y nombre nuevo), 0008 (arcades), 0009 (exFAT > 4 GB), 0010 (etiqueta exFAT), 001
 - [ ] Comprobar en la placa el resto del arranque: Linux, `MiSTer`, HDMI, menú y carga de cores.
 - [ ] Probar `update.sh` en la placa, incluida la actualización de Linux y de U-Boot (`updateboot`).
 - [ ] Probar la red USB y SSH.
-- [ ] Sonido de Linux (spi-audio): desactivado en el framework de la ch96.
+- [ ] Sonido de Linux: falta que los cores se compilen con ALSA (§8.1). Probar MidiLink en el ao486.
 - [ ] WiFi/BT integrados: necesitan un controlador SDIO en la FPGA.
 
 ---

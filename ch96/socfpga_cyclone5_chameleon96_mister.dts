@@ -87,6 +87,26 @@
 	speed-mode = <0>;
 };
 
+/*
+ * Sonido de Linux (MidiLink: FluidSynth/MUNT, MP3...), como en la DE10. El
+ * driver deja el audio en un búfer de la RAM de Linux y le pasa su dirección a
+ * la FPGA por el SPI interno del HPS (spim0, sin pines); alsa.sv lo lee y lo
+ * mezcla con el sonido del core. Solo suena con cores compilados sin
+ * MISTER_DISABLE_ALSA; con los demás no hace nada.
+ */
+&spi0 {
+	status = "okay";
+	timeouts = <3>;
+	spiusb@0 {
+		compatible = "MiSTer,spi-audio";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		spi-cpha;
+		spi-cpol;
+		status = "okay";
+	};
+};
+
 &mmc0 {
 	vmmc-supply = <&regulator_3_3v>;
 	vqmmc-supply = <&regulator_3_3v>;
