@@ -241,11 +241,16 @@ oficial = games/AO486/*   ; opcional: ficheros de apoyo copiados de la distribuc
 - `build_db.py` toma el `.rbf` más reciente de `releases/` que acabe en **`_AAAAMMDD_ch96.rbf`**
   (formato actual de teiram) o **`_ch96_AAAAMMDD.rbf`** (antiguo). Los `.rbf` sin `_ch96` son los
   de la DE10 y se ignoran.
-- Al instalarlo quita el `_ch96`: `ao486_20261120_ch96.rbf` → `_Computer/ao486_20261120.rbf`. El
-  menú lo muestra como en MiSTer, y cuando sale una fecha nueva el Downloader borra la anterior.
+- Se instala **con el `_ch96` al final**, detrás de la fecha, para que en la SD se vea que el core
+  es de la Chameleon96: `ao486_20261120_ch96.rbf` → `_Computer/ao486_20261120_ch96.rbf`. El formato
+  antiguo se reordena: `TS2068_ch96_20261117.rbf` → `TS2068_20261117_ch96.rbf`. El menú de MiSTer
+  corta el nombre en el primer `_20` (`file_io.cpp`), así que muestra «ao486» con su fecha y no
+  enseña el sufijo; el `_ch96` delante de la fecha sí saldría en el nombre. Cuando sale una fecha
+  nueva el Downloader borra la anterior (y en las SD con los nombres sin `_ch96` de antes del
+  25/11/2026, los cambia solo en el siguiente `update`).
 - Las URL quedan fijadas al commit (`raw.githubusercontent.com/<repo>/<sha>/releases/...`).
 - **Arcades**: si la sección empieza por `Arcade-`, el `.rbf` va a `_Arcade/cores/` **sin el
-  `Arcade-`** (`Galaga_20261120.rbf`, que es lo que busca `<rbf>galaga</rbf>` en los `.mra`), y
+  `Arcade-`** (`Galaga_20261120_ch96.rbf`: `<rbf>galaga</rbf>` en los `.mra` busca `galaga_*.rbf`, `mra_loader.cpp`), y
   los `releases/*.mra` del mismo commit van a `_Arcade/`. Las ROMs (`games/mame/*.zip`) las pone
   cada usuario.
 - `[oficial]`: scripts copiados tal cual de la distribución oficial (`Scripts/` de

@@ -132,3 +132,11 @@ usb1 host con `disable-over-current`, puentes FPGA, `flags-sram` en OCRAM, i2c2 
   de mando por defecto), map_joystick() parte de un mmap estándar: cursores, Ctrl/Alt/Espacio/Mayús = A/B/X/Y,
   1 = Start, 2 = Select, 5 = R (Coin), P = L. build_release.sh aplica ch96/Main_MiSTer_ch96-*.patch.
 - Compila con gcc 10.2 sobre teiram/Main_MiSTer_ch96 d9799de. Sin probar en la placa.
+
+## Nombre de los .rbf en la SD con _ch96 (25/11/2026)
+- Se instalan como en los repos, con _ch96 al final: ao486_20261120_ch96.rbf, Galaga_20261120_ch96.rbf (sin
+  "Arcade-"). El formato antiguo se reordena: TS2068_ch96_20261117.rbf -> TS2068_20261117_ch96.rbf.
+- El menú (file_io.cpp) corta el nombre en el primer "_20": muestra "ao486" y la fecha, sin el sufijo. Los .mra
+  (mra_loader.cpp) buscan "<rbf>_": encuentran Galaga_20261120_ch96.rbf.
+- Probado con el Downloader 2.4 en modo PC: con la db anterior instala Osborne_20261122.rbf y Galaga_20261120.rbf;
+  con la nueva los borra e instala los *_ch96.rbf. update_extras.sh ya quitaba el _ch96 al sacar el nombre.

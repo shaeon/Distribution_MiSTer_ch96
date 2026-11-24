@@ -43,11 +43,13 @@ sin arrancar).
   `update_all`. No usa `update_all`, que instalaría la distribución de la
   DE10. Detalles en `docs/DOCUMENTACION.md`.
 - **Cores**: los `.rbf` se quedan en sus repositorios. La URL de la base de
-  datos apunta al fichero fijado a su commit. Al instalar se quita el `_ch96`
-  del nombre (`ao486_20261120_ch96.rbf` → `_Computer/ao486_20261120.rbf`), y
-  cuando sale una fecha nueva el Downloader borra la anterior. También vale el
-  formato antiguo (`TS2068_ch96_20261117.rbf`); los `.rbf` sin `_ch96` son los
-  de la DE10-Nano y se ignoran.
+  datos apunta al fichero fijado a su commit. Se instalan con el `_ch96` al
+  final (`ao486_20261120_ch96.rbf` → `_Computer/ao486_20261120_ch96.rbf`), para
+  que se vea que son de la Chameleon96; el menú corta el nombre en la fecha y
+  muestra «ao486» como en MiSTer. Cuando sale una fecha nueva el Downloader
+  borra la anterior. También vale el formato antiguo
+  (`TS2068_ch96_20261117.rbf`), que se instala como `TS2068_20261117_ch96.rbf`;
+  los `.rbf` sin `_ch96` son los de la DE10-Nano y se ignoran.
 - **Ficheros de apoyo de los cores** (ROMs de arranque del ao486, discos vacíos
   del PET...): el campo `oficial` de cada core los copia de la base de datos
   oficial a `games/`.
@@ -71,7 +73,7 @@ oficial = games/AO486/*   ; opcional: ficheros de apoyo de la distribución ofic
 
 **Arcades**: la sección se llama como el repositorio (`Arcade-Galaga`) y basta
 con el `repo`. El `.rbf` va a `_Arcade/cores/` sin el `Arcade-`
-(`Galaga_20261120.rbf`, que es lo que buscan los `.mra`) y los `releases/*.mra`
+(`Galaga_20261120_ch96.rbf`, que lo encuentran los `.mra`) y los `releases/*.mra`
 del mismo commit a `_Arcade/`. Las ROMs (`games/mame/*.zip`) las pone cada uno.
 
 ```ini

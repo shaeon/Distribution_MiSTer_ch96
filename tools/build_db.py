@@ -123,14 +123,18 @@ def is_arcade(section):
 
 
 def install_name(section, filename):
-    """Quita el _ch96 para que el menú muestre el core como en MiSTer:
-         TS2068_20261120_ch96.rbf -> TS2068_20261120.rbf
-         TS2068_ch96_20261117.rbf -> TS2068_20261117.rbf
-    En los arcades quita también el "Arcade-", como la distribución oficial,
-    porque el <rbf> de los .mra busca el core por ese nombre:
-         Arcade-Galaga_20261120_ch96.rbf -> Galaga_20261120.rbf"""
-    name = re.sub(r'_ch96(?=\.rbf$)', '', filename, flags=re.IGNORECASE)
-    name = re.sub(r'_ch96(?=_\d{8}\.rbf$)', '', name, flags=re.IGNORECASE)
+    """Deja el _ch96 al final, detrás de la fecha, para que se vea en la SD que
+    el core es de la Chameleon96. El menú de MiSTer corta el nombre en el
+    primer "_20", así que sigue mostrando "TS2068" con su fecha, y el <rbf> de
+    los .mra busca "<nombre>_", así que también lo encuentra:
+         TS2068_20261120_ch96.rbf -> TS2068_20261120_ch96.rbf
+    El formato antiguo pasa el _ch96 al final (delante de la fecha el menú lo
+    mostraría como parte del nombre: "TS2068_ch96"):
+         TS2068_ch96_20261117.rbf -> TS2068_20261117_ch96.rbf
+    En los arcades quita el "Arcade-", como la distribución oficial, porque
+    el <rbf> de los .mra busca el core por ese nombre:
+         Arcade-Galaga_20261120_ch96.rbf -> Galaga_20261120_ch96.rbf"""
+    name = re.sub(r'_ch96_(\d{8})\.rbf$', r'_\1_ch96.rbf', filename, flags=re.IGNORECASE)
     if is_arcade(section):
         name = re.sub(r'^arcade-', '', name, flags=re.IGNORECASE)
     return name

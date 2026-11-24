@@ -12,6 +12,7 @@ on:
       - linux.json
       - system.json
       - tools/build_db.py
+      - tools/build_db.py
   schedule:
     - cron: '17 */6 * * *'
   workflow_dispatch:
