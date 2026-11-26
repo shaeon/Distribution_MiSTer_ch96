@@ -328,11 +328,15 @@ Cores actuales:
 | Sección | Repositorio |
 |---|---|
 | ao486, Amstrad, Amstrad-PCW, BBCMicro, MicroBee, PET2001, SharpMZ | `teiram/<core>_MiSTer_ch96` |
+| TI-99_4A | `teiram/TI-99_4A_MiSTer_ch96` (`pattern = Ti994a_*_ch96.rbf`) |
+| Microtan65 | `teiram/Microtan65_ch96` |
 | Arcade-Galaga, Arcade-Gaplus, Arcade-QBert | `teiram/Arcade-<core>_MiSTer_ch96` |
 | TS2068 | `Maverick-Shark/TS2068_MiSTer`, rama `ch96` |
+| PCAT-286 | `Maverick-Shark/pcat-286_mister`, rama `ch96` |
 | IMSAI8080 | `shaeon/IMSAI8080_MiSTer`, rama `ch96` |
 | Osborne | `shaeon/Osborne_MiSTer_ch96` |
 | Lynx | `shaeon/Lynx_MiSTer_ch96` |
+| TatungEinstein | `shaeon/TatungEinstein_ch96` |
 
 Para añadir uno: nueva sección en `sources.ini` → push. En el siguiente `update.sh` aparece en la
 placa.
