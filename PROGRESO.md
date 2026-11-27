@@ -149,3 +149,8 @@ usb1 host con `disable-over-current`, puentes FPGA, `flags-sram` en OCRAM, i2c2 
 - [ ] Falta que Aitor suba releases/PCXT_AAAAMMDD_ch96.rbf (hoy releases/ solo tiene .gitkeep); hasta
       entonces build_db.py avisa y solo publica las ROMs.
 - [ ] hd_image.zip (FreeDOS, 26 MB, games/PCXT del repo) no se publica: hay que descomprimirlo a mano.
+
+## TS2068 propio (27/11/2026)
+- [TS2068] pasa de Maverick-Shark/TS2068_MiSTer (rama ch96) a shaeon/TS2068_MiSTer_ch96, cuyo
+  build_ch96.yml deja releases/TS2068_AAAAMMDD_ch96.rbf. Mientras ese repo no tenga ningún .rbf en
+  releases/, build_db.py avisa y el TS2068 sale de la base de datos (el Downloader lo borraría de la SD).
