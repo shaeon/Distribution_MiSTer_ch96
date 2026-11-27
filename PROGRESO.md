@@ -140,3 +140,12 @@ usb1 host con `disable-over-current`, puentes FPGA, `flags-sram` en OCRAM, i2c2 
   (mra_loader.cpp) buscan "<rbf>_": encuentran Galaga_20261120_ch96.rbf.
 - Probado con el Downloader 2.4 en modo PC: con la db anterior instala Osborne_20261122.rbf y Galaga_20261120.rbf;
   con la nueva los borra e instala los *_ch96.rbf. update_extras.sh ya quitaba el _ch96 al sacar el nombre.
+
+## PCXT de Aitor (27/11/2026)
+- [PCXT] en sources.ini: aitorgomez-net/PCXT_ch96. La distribución oficial solo tiene el .rbf y docs/PCXT,
+  sin BIOS. Se copian de SW/ROMs/ del repo de Aitor a games/PCXT/ (pcxt_xtsergey, pcxt_pcxt31, ide_xtl y
+  BASICA/) y pcxt_xtsergey.rom también como boot0.rom: Main_MiSTer la carga en la ranura 0 (PCXT BIOS)
+  si no hay otra elegida en el OSD (user_io.cpp). boot1..3.rom no valen: van también a la ranura 0.
+- [ ] Falta que Aitor suba releases/PCXT_AAAAMMDD_ch96.rbf (hoy releases/ solo tiene .gitkeep); hasta
+      entonces build_db.py avisa y solo publica las ROMs.
+- [ ] hd_image.zip (FreeDOS, 26 MB, games/PCXT del repo) no se publica: hay que descomprimirlo a mano.

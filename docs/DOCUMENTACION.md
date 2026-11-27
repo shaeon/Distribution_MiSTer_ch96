@@ -333,6 +333,7 @@ Cores actuales:
 | Arcade-Galaga, Arcade-Gaplus, Arcade-QBert | `teiram/Arcade-<core>_MiSTer_ch96` |
 | TS2068 | `Maverick-Shark/TS2068_MiSTer`, rama `ch96` |
 | PCAT-286 | `Maverick-Shark/pcat-286_mister`, rama `ch96` |
+| PCXT | `aitorgomez-net/PCXT_ch96`; BIOS libres de `SW/ROMs/` en `games/PCXT/` y `boot0.rom` (Micro8088 con XTIDE) para que arranque sin elegir BIOS |
 | IMSAI8080 | `shaeon/IMSAI8080_MiSTer`, rama `ch96` |
 | Osborne | `shaeon/Osborne_MiSTer_ch96` |
 | Lynx | `shaeon/Lynx_MiSTer_ch96` |
