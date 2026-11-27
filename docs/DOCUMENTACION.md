@@ -338,6 +338,7 @@ Cores actuales:
 | Osborne | `shaeon/Osborne_MiSTer_ch96` |
 | Lynx | `shaeon/Lynx_MiSTer_ch96` |
 | TatungEinstein | `shaeon/TatungEinstein_ch96` |
+| MEGA65 | `shaeon/MEGA65_MiSTer_ch96` (OpenROMs integradas; `boot.vhd` y `MEGA65.ROM` los pone cada uno) |
 
 Para añadir uno: nueva sección en `sources.ini` → push. En el siguiente `update.sh` aparece en la
 placa.
